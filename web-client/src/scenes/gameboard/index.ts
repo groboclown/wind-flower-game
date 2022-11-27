@@ -9,6 +9,7 @@ import {
 	BoardRect,
 	GameBoardSegment,
 } from '../../store'
+import { createAlternatingBoard, createBoardRect } from './test-data'
 
 export default class GameBoardScene extends Scene3D {
   constructor() {
@@ -87,93 +88,21 @@ export default class GameBoardScene extends Scene3D {
 		// TODO this should be loaded from the server.
 		//   Nothing should modify the state data.
 		//   This is hard-coded for now.
-		const hexColumns = 10
-		const hexRows = 10
-		const boardDim: BoardRect = {
-			minX: -(3 * hexColumns), maxX: (3 * hexColumns),
-			minY: -(2 * hexRows), maxY: (2 * hexRows),
-		}
-		const segmentSize: BoardSize = {width: 3 * hexColumns, height: 2 * hexRows}
-		const segments: GameBoardSegment[] = []
-		const colors = [
-			[1, 0, 0],
-			[0, 1, 0],
-			[0, 0, 1],
-			[1, 1, 0],
-			[1, 0, 1],
-			[0, 1, 1],
-		]
-		for (let segY = -1; segY <= 1; segY++) {
-			for (let segX = -1; segX <= 1; segX++) {
-				const tiles = new Array<Tile>(segmentSize.width * segmentSize.height)
-				const segment: GameBoardSegment = {
-					position: {
-						x: segX * segmentSize.width - (segmentSize.width >> 1),
-						y: segY * segmentSize.height - (segmentSize.height >> 1),
-					},
-					tiles,
-				}
-				segments.push(segment)
-				for (let tileY = 0; tileY < segmentSize.height; tileY++) {
-					for (let tileX = 0; tileX < segmentSize.width; tileX++) {
-						const tileIndex = tileX + (tileY * segmentSize.width)
-						let category: string | null = null
-						let height = Math.random() * 5 | 0
-						let rgb: number[]
+		const boardSize: BoardSize = {width: 3 * 10, height: 2 * 10}
+		const boardRect = createBoardRect(boardSize)
+		const boardSegments = createAlternatingBoard(boardSize)
 
-						// Make it look like a hex tile.
-						let hexRowPart = tileY % 2
-						let startHexCol = tileX - (tileX % 3)
-						let endHexCol = startHexCol + 3
-						let startHexRow: number
-						if ((tileX % 6) < 3) {
-							// Type A
-							startHexRow = tileY - hexRowPart
-						} else {
-							// Type B
-							startHexRow = tileY - (1 - hexRowPart)
-						}
-						let endHexRow = startHexRow + 2
-						if (
-								startHexRow >= 0 && startHexCol >= 0 &&
-								endHexCol < segmentSize.width && endHexRow < segmentSize.height
-						) {
-							// It's a valid hex location.
-							const tokenColumn = startHexCol / 3
-							const tokenRow = startHexRow >> 1
-							if (startHexCol === tileX && startHexRow === tileY) {
-								// Create the tile whole cloth
-								console.log(`(${tokenColumn}, ${tokenRow}) create (${startHexCol}, ${startHexRow})`)
-								category = "grassland"
-								rgb = colors[(tokenColumn + (tokenRow * hexColumns)) % colors.length]
-							} else {
-								// Copy the tile
-								console.log(`(${tokenColumn}, ${tokenRow}) : copy (${startHexCol}, ${startHexRow}) -> (${tileX}, ${tileY})`)
-								const hexIndex = startHexCol + (startHexRow * segmentSize.width)
-								category = tiles[hexIndex].category
-								height = tiles[hexIndex].height
-								rgb = tiles[hexIndex].rgb
-							}
-						}
-						tiles[tileIndex] = {
-							category,
-							height,
-							rgb,
-							parameters: [],
-						}
-					}
-				}
-			}
+		for (let i = 0; i < boardSegments.length; i++) {
+			console.log(`Segment ${i} sized ${boardSegments[i].tiles.length}`)
 		}
-
 		this.third.scene.add(createGrid(
 			// state.gameBoard.segments,
 			// state.gameBoard.segmentSize,
 			// state.gameBoard.size,
 
-			segments,
-			segmentSize,
-			boardDim,
+			boardSegments,
+			boardSize,
+			boardRect,
 		))
 	}
 

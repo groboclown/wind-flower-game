@@ -2,6 +2,11 @@
 import { THREE, ExtendedMesh } from 'enable3d'
 import { GameBoardSegment, BoardSize, BoardRect } from '../../store/state/board'
 
+// 30-60-90 triangle:
+//  hyp length == 1
+//  adj length == 1/2
+//  opp length == sqrt(3) / 2
+
 const SIDE_LENGTH = 1
 const SIDE_LENGTH_HALF = SIDE_LENGTH / 2
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3)
@@ -42,10 +47,22 @@ export function createGrid(
   //    +-----+-----+-----+
   //    | 0,1 | 1,1 | 2,1 |
   //    +-----+-----+-----+
-  // will line up with the tiles.
+  // will line up with the tiles, to turn into:
+  //      +-------+
+  //     / \     / \
+  //    / A \ B / C \
+  //   /     \ /     \
+  //  +-------+-------+
+  //   \     / \     /
+  //    \ D / E \ F /
+  //     \ /     \ /
+  //      +-------+
 
-  // Because of this arrangement, though, even rows must be
-  // shifted to the right by half.
+  // In both cases, the x/y values are the same, but the y values
+  // are inverted.  If the y values are inverted, the order of the
+  // vertices must be also swapped to maintain the right-hand rule
+  // for the normal.
+
 
   const triangleCount = segmentSize.width * segmentSize.height
   const geometry = new THREE.BufferGeometry()
@@ -67,50 +84,43 @@ export function createGrid(
   const startX = (primary.position.x * SIDE_LENGTH_HALF) + ((boardDim.maxX + boardDim.minX) / 2)
   let column = 0
   let row = 0
+  // x & z are the upper-left corner of the "square" containing the triangle.
+  let x = startX
   let z = (primary.position.y * BASE_LENGTH) + ((boardDim.maxY + boardDim.minY) / 2)
   let vIdx = 0
   for (let tileI = 0; tileI < primary.tiles.length; tileI++) {
-    const hOdd = column & 0x1
-    const vOdd = row & 0x1
-    const hvOdd = (row + column) & 0x1
-
-    // The even/odd fit together such that the odd triangles take up the same X
-    //   graphical position as the even ones, just flipped and offset by 1/2.
-    //   We perform "x >> 1" in order to perform an integer divide.  This means
-    //   the even and odd use the exact same computed values for the x/y position.
-
-    // FIXME the generated triangles create a perfet mesh,
-    //   but they aren't aligned with the hexes.  This algorithm needs to be
-    //   tweaked a bunch.
-
-    let xWiggle = SIDE_LENGTH - (vOdd * SIDE_LENGTH_HALF)
+    const crOdd = (column + row) & 0x1
 
     // For now, we aren't looking at height.
-    let ax = xWiggle + startX + ((column >> 1) * SIDE_LENGTH)
-    let ay = primary.tiles[tileI].height * HEIGHT_SCALE
-    let az = z
-    let bx = ax + SIDE_LENGTH
-    let by = primary.tiles[tileI].height * HEIGHT_SCALE
-    let bz = az
-    let cx = ax + SIDE_LENGTH_HALF
-    let cy = primary.tiles[tileI].height * HEIGHT_SCALE
-    let cz = az - BASE_LENGTH
+    //   When we do, the adjacent tiles must be scanned.
 
-    if (hOdd === 0) {
-      // With some fancy math, we can push this into the above
-      //   computation.  For now, be explicit.
-      // new C := old B (exact translation)
-      // new B := old C (exact translation)
-      // A -> (x := new bx + SIDE_LENGTH), (z := new B)
+    // Points A, B, C:
+    //      + A
+    //     / \
+    //  C +---+ B
+    // To flip the z coordinate, it's (z + (hyOdd * BASE_LENGTH)) or (z + ((1 - hyOdd) * BASE_LENGTH))
+    let ax = x + SIDE_LENGTH_HALF
+    let ay = primary.tiles[tileI].height * HEIGHT_SCALE
+    let az = z + (crOdd * BASE_LENGTH)
+    let bx = x + SIDE_LENGTH
+    let by = primary.tiles[tileI].height * HEIGHT_SCALE
+    let bz = z + ((1 - crOdd) * BASE_LENGTH)
+    let cx = x
+    let cy = primary.tiles[tileI].height * HEIGHT_SCALE
+    let cz = bz
+
+    if (crOdd !== 0) {
+      // Need to swap the b & c to accomodate the right-hand rule
+      // to make the normals all point in the right direction
       let tmpx = bx
+      let tmpy = by
       let tmpz = bz
-      // ignore z for now
       bx = cx
+      by = cy
       bz = cz
       cx = tmpx
+      cy = tmpy
       cz = tmpz
-      ax = bx + SIDE_LENGTH
-      az = bz
     }
 
     positions[vIdx] = ax;
@@ -177,10 +187,12 @@ export function createGrid(
 
     vIdx += 3 * 3
     column++
+    x += SIDE_LENGTH_HALF
     if (column >= segmentSize.width) {
       row++
       column = 0
       z += BASE_LENGTH
+      x = startX
     }
   }
   const rowlen = segmentSize.width * 3 * 3

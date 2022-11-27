@@ -1,6 +1,6 @@
 # Wind Flower
 
-![wind flower icon](web-client/public/icons/fav-icon-512.png)
+![wind flower icon](web-client/public/icons/fav-icon.svg)
 
 Game where players take turns creating the map to grow their territory.
 
