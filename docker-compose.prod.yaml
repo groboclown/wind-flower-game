@@ -1,0 +1,40 @@
+version: '3'
+
+# A "production" version of the deployment.
+# This uses a single HTTPD server + db.
+
+
+networks:
+  inter:
+    external: false
+
+
+services:
+
+  httpd:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "800:80"
+
+
+  db-server:
+    build:
+      context: db-schema/.
+      dockerfile: Dockerfile.mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw 
+    ports:
+      - "13306:3306"
+    volumes:
+      - ./.tmp/mysql-data:/var/lib/mysql
+
+  #db-server:
+  #  build:
+  #    context: db-schema/.
+  #    dockerfile: Dockerfile.postgres
+  #  ports:
+  #    - ""
+  #  volumes:
+  #    - ""

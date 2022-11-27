@@ -1,0 +1,6 @@
+
+# These are pulled by the build.
+/web-client/dist/
+/web-client/node_modules/
+
+/php-server/vendor/

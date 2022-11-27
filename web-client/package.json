@@ -1,0 +1,32 @@
+{
+  "name": "country-webclient",
+  "version": "1.0.0",
+  "description": "Web client for the Country Game.",
+  "scripts": {
+    "test": "jest",
+    "start": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "clean": "rimraf ./dist ./.cache"
+  },
+  "author": "Groboclown",
+  "license": "MIT",
+  "dependencies": {
+    "@enable3d/phaser-extension": "^0.25.3",
+    "@reduxjs/toolkit": "^1.9.0",
+    "enable3d": "^0.25.3",
+    "matter-js": "^0.17.1",
+    "phaser": "^3.55.2",
+    "poly-decomp": "^0.3.0",
+    "three": "^0.144.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.2.3",
+    "jest": "^29.3.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^29.0.3",
+    "tslint": "^6.1.3",
+    "typescript": "^4.9.3",
+    "vite": "^3.2.4"
+  }
+}

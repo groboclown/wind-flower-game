@@ -1,0 +1,18 @@
+# This is the base directory, the umbrella for the rest of the code.
+# Each sub-project maintains its own gitignore file.
+
+# IDE files
+
+# IDE - VSCode
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/tasks.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+/*.code-workspace
+
+/.tmp/
+/local-*
+
+/.npm/
+/.n/

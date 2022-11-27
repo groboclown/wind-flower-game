@@ -1,0 +1,66 @@
+version: '3'
+
+# A development version of the deployment.
+# Allows you to get the system running against your physical files
+# to allow on-the-fly editing + testing.
+
+
+networks:
+  inter:
+    external: false
+
+
+services:
+  proxy:
+    build:
+      context: build/front-end-proxy/.
+      dockerfile: Dockerfile
+    ports:
+      - "10080:80"
+    depends_on:
+      - rest-api-server
+      - web-client
+
+
+  rest-api-server:
+    build:
+      context: php-server/.
+      dockerfile: Dockerfile.dev
+    ports:
+      - "18080:80"
+    volumes:
+      - ./php-server:/var/www
+    command: apache2-foreground
+    depends_on:
+      - db-server
+
+
+  web-client:
+    build:
+      context: web-client/.
+      dockerfile: Dockerfile.dev
+    ports:
+      - "13000:3000"
+    volumes:
+      - ./web-client:/app
+
+
+  db-server:
+    build:
+      context: db-schema/.
+      dockerfile: Dockerfile.mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw 
+    ports:
+      - "13306:3306"
+    volumes:
+      - ./.tmp/mysql-data:/var/lib/mysql
+
+  #db-server:
+  #  build:
+  #    context: db-schema/.
+  #    dockerfile: Dockerfile.postgres
+  #  ports:
+  #    - ""
+  #  volumes:
+  #    - ""

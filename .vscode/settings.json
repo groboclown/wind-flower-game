@@ -1,0 +1,16 @@
+{
+    "spellright.language": [
+        "English (American)"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ],
+    "files.trimTrailingWhitespace": true,
+    "editor.tabSize": 2,
+    "editor.indentSize": "tabSize",
+    "[python]": {
+        "editor.tabSize": 4
+    }
+}

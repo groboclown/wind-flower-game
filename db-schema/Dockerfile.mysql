@@ -1,0 +1,11 @@
+FROM docker.io/mysql:8.0
+
+COPY tables/ /tmp/db-schema-src/.
+COPY install/convert-mysql.sh /tmp/convert-mysql.sh
+
+# All files at startup time in the /docker-entrypoint-initdb.d directory are
+# run at first-time startup.
+
+RUN mkdir -p /docker-entrypoint-initdb.d \
+    && chmod +x /tmp/convert-mysql.sh \
+    && /tmp/convert-mysql.sh /tmp/db-schema-src /docker-entrypoint-initdb.d

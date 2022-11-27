@@ -1,0 +1,9 @@
+/.phpunit.*
+/composer.json
+/docker-compose.yaml
+/phpcs.xml*
+/phpunit.xml*
+/psalm.xml*
+*.md
+.gitignore
+.gitattributes
