@@ -61,21 +61,37 @@ In this setup, a hexagon can be placed at:
 * valid row value: (if column modulo 6 == 0 and row modulo 2 == 0) or (if column modulo 6 == 3 and row modulo 2 == 1).
 
 
-## Hex Height and Triangle Z Position
+## Hex Height and Triangle Y Position
 
-The game involves heights (z level) on each placed token.  If we want the tiangles within the hexes to connect nicely (an even triangle grid rather than stepping-stone looking tokens), then we have to figure out what the "z" means for the triangles.
+The game involves heights (y level) on each placed token.  If we want the triangles within the hexes to connect nicely (an even triangle grid rather than stepping-stone looking tokens), then we have to figure out what the "y" means for the triangles.
 
-In terms of the hexes, the "z" level for the token is the center point.  The other points on the triangles in that hex are an average in "z" level between this hex and the connected hexes (exactly 3 connected hexes for every point).
+In terms of the hexes, the height for the hex token is the center point.  The other points on the triangles in that hex are an average in "y" level between this hex and the connected hexes (exactly 3 connected hexes for every point).
 
-Data-wise, we only store the "z" level for the token itself.  This means the rendering engine needs to compute the correct "z" level for the triangle without being given the information for which triangle in the grid it is.
+Data-wise, the triangles in the hex token store only the height for the source hex token.  This means the rendering engine needs to extrapolate the correct "y" value for each of the triangle's vertices.
 
-In all cases, the hex-to-tile format is a 3x2 grid that represents:
+The hex-to-tile format is a 3x2 grid that represents:
 
 ![hex as triangles, numbered](images/one-hex-triangles-numbered.svg)
 
 with the coordinates being relative offsets to the token placement.
 
+Based on the [above description on valid hex placements](#valid-hex-placements), we can perform a reverse lookup for a triangle-to-hex index:
 
+```python
+hex_column = triangle_grid_column % 3
+if triangle_grid_column % 6 < 3:
+    hex_row = triangle_grid_row % 2
+else:
+    hex_row = (row + 1) % 2
+```
+
+For each of the verticies on each of the triangles, the connected triangles in adjacent hex tokens must be found.  The layout looks like this:
+
+![adjacent hex triangles](images/adjacent-hex-triangles-numbered.svg)
+
+All point on a triangle has 6 adjacent triangles.  The simple case is `P0` - the center of the 'O' (for origin, the under-inspection) hex token; its "y" value is the token's height.  For the other 6 points, there are only 3 hex token heights, so averaging all 6 would be redundant.
+
+Using the algorithm above for finding the internal hex token coordinates, we can use that with a lookup table to find the relative triangle grid coordinate for each of the triangles used to contribute to the height average.  One of these relative coordinates will be `(0, 0)`, to represent the current triangle's height.  If we want to use simple logic rather than lots of special cases (but possibly faster), `P0` would only need to contain three `(0, 0)` values.
 
 
 ## Old Cruft
@@ -111,8 +127,3 @@ def is_even(current: Coordinate) -> bool:
 def move(current: Coordinate, amount: Coordinate) -> Coordinate:
     return (current[0] + amount[0], current[1] + amount[1])
 ```
-
-
-## Hex Placement
-
-To place a hex, we must first assume that one hex is already placed (or that the initial hex placement is trivial - it can be anywhere, or more practically a fixed location).  We then realize that hexes can only be placed complete (no partial triangle placement allowed).
