@@ -50,7 +50,24 @@ function createAlternatingTokenSegment(
   for (let i = 0; i < tokens.length; i++) {
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
-      height: (Math.random() * 5) | 0,
+
+      // Everything the same height, even empty tiles
+      // height: 0,
+
+      // Everything but empty tiles the same height
+      // height: 1,
+
+      // Random integer heights
+      // height: (Math.random() * 6) | 0,
+
+      // Wavy heights
+      // height: (Math.sin(i / 10) * 4) + 5,
+
+      // Alternating heights
+      // height: (((i % size.height) % 2) * 5) + 1,
+
+      // Increasing heights
+      height: i / 5,
     }
   }
   return tokens
