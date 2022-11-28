@@ -33,19 +33,24 @@ jobs:
         uses: actions/jekyll-build-pages@v1
         with:
           source: ./docs
-          destination: ./_site
+          # This generated directory is root-owned,
+          #   so we won't be able to augment it with
+          #   later stuff.
+          destination: ./_jekyll_site
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
       - name: Build web client
         run: |
-          ls -lA .
-          cd web-client
-          npm install
-          npm run build
-          chmod +w ../_site
-          mv dist ../_site/live
+          ( cd web-client && npm install )
+          ( cd web-client && npm run build )
+      - name: Assemble Documents
+        run: |
+          mkdir -p _site
+          cp -R ./_jekyll_site/* ./_site/.
+          mv web-client/dist ./_site/live
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
 
