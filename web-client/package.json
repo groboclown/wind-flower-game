@@ -6,6 +6,7 @@
     "test": "jest",
     "start": "vite",
     "build": "tsc && vite build",
+    "pages-build": "tsc && vite build --base=/wind-flower-game/live",
     "preview": "vite preview",
     "clean": "rimraf ./dist ./.cache"
   },

@@ -45,7 +45,7 @@ jobs:
         # Need to build the client for use with github pages.
         run: |
           ( cd web-client && npm install )
-          ( cd web-client && npm run build --base=/wind-flower-game/live )
+          ( cd web-client && npm run pages-build )
       - name: Assemble Documents
         run: |
           mkdir -p _site
