@@ -42,50 +42,84 @@ export function createAlternatingBoard(
 }
 
 
-function createAlternatingTokenSegment(
+export function createAlternatingTokenSegment(
   size: BoardSize,
   startIndex: number
 ): (Tile | null)[] {
   const tokens = createEmptyTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
-    const row = (i / tokenSize.width) | 0
-    const column = i % tokenSize.width
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
-
-      // Everything the same height, even empty tiles
-      // height: 0,
-
-      // Everything but empty tiles the same height
-      // height: 1,
-
-      // Random integer heights
-      // height: (Math.random() * 6) | 0,
-
-      // Wavy heights
-      // height: (Math.sin(i / 10) * 4) + 5,
-
-      // Alternating heights
-      // height: (((i % size.height) % 2) * 5) + 1,
-
-      // Increasing heights along the diagonal
-      // height: i / 5,
-
-      // wave rings
-      height: Math.sin(Math.sqrt(
-        (((tokenSize.height / 2) - row) * ((tokenSize.height / 2) - row)
-        + ((tokenSize.width / 2) - column) * ((tokenSize.width / 2) - column))) * 2) * 4,
-
-      // == row
-      // height: row,
-
-      // == column
-      // height: column,
+      height: calculateHeight(i, tokenSize, 6),
     }
   }
   return tokens
 }
+
+
+export function createAlternatingEmptyTokenSegment(
+  size: BoardSize,
+  startIndex: number
+): (Tile | null)[] {
+  const tokens = createEmptyTokenSegment(size)
+  const tokenSize = getTokenBoardSize(size)
+  for (let i = 0; i < tokens.length; i++) {
+    tokens[i] = {
+      ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
+      height: calculateHeight(i, tokenSize, 6),
+    }
+  }
+  return tokens
+}
+
+
+function calculateHeight(tokenIndex: number, tokenBoardSize: BoardSize, heightType: number): number {
+  const row = (tokenIndex / tokenBoardSize.width) | 0
+  const column = tokenIndex % tokenBoardSize.width
+  switch (heightType) {
+      case 1:
+        // Everything but empty tiles the same height
+        return 1
+
+      case 2:
+        // Random integer heights
+        return (Math.random() * 6) | 0
+
+      case 3:
+        // Wavy heights
+        return (Math.sin(tokenIndex / 10) * 4) + 5
+
+      case 4:
+        // Alternating heights
+        return (((tokenIndex % tokenBoardSize.height) % 2) * 5) + 1
+
+      case 5:
+        // Increasing heights along the diagonal
+        return tokenIndex / 5
+
+      // wave rings
+      case 6:
+        return Math.sin(Math.sqrt(
+          (((tokenBoardSize.height / 2) - row) * ((tokenBoardSize.height / 2) - row)
+          + ((tokenBoardSize.width / 2) - column) * ((tokenBoardSize.width / 2) - column))) * 2) * 4
+
+      case 7:
+        // == row
+        return row
+
+      case 8:
+        // == column
+        return column
+
+      // Everything the same height, even empty tiles
+      case 0:
+      default:
+        return 0
+
+  }
+}
+
 
 
 function createEmptyTokenSegment(

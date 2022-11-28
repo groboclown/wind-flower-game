@@ -88,6 +88,8 @@ export const gameLobbyReducer = createReducer(
   initialGameLobbyState(), (builder) => {
     builder
       .addCase(loadedClientAccount, (state, action) => {
+        // FIXME PLACEHOLDER - this is wrong
+        state.gameName = action.payload.humanName
       })
   },
 )

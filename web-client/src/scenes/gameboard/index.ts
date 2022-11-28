@@ -4,10 +4,10 @@ import { THREE } from 'enable3d'
 import { createGrid } from './grid'
 import {
 	store,
-	Tile,
+	// Tile,
 	BoardSize,
-	BoardRect,
-	GameBoardSegment,
+	// BoardRect,
+	// GameBoardSegment,
 } from '../../store'
 import { createAlternatingBoard, createBoardRect } from './test-data'
 
