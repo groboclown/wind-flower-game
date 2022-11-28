@@ -34,7 +34,7 @@ jobs:
         with:
           source: ./docs
           destination: ./_site
-        name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
