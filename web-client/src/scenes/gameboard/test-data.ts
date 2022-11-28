@@ -47,7 +47,10 @@ function createAlternatingTokenSegment(
   startIndex: number
 ): (Tile | null)[] {
   const tokens = createEmptyTokenSegment(size)
+  const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
+    const row = (i / tokenSize.width) | 0
+    const column = i % tokenSize.width
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
 
@@ -66,8 +69,19 @@ function createAlternatingTokenSegment(
       // Alternating heights
       // height: (((i % size.height) % 2) * 5) + 1,
 
-      // Increasing heights
-      height: i / 5,
+      // Increasing heights along the diagonal
+      // height: i / 5,
+
+      // wave rings
+      height: Math.sin(Math.sqrt(
+        (((tokenSize.height / 2) - row) * ((tokenSize.height / 2) - row)
+        + ((tokenSize.width / 2) - column) * ((tokenSize.width / 2) - column))) * 2) * 4,
+
+      // == row
+      // height: row,
+
+      // == column
+      // height: column,
     }
   }
   return tokens
@@ -124,8 +138,8 @@ function getTokenBoardSize(
 
 const EMPTY_TILE: Tile = {
   category: null,
-  rgb: [0.25, 0.25, 0.25],  // temporary
-  height: 0,
+  rgb: [0.0, 0.0, 0.0],  // temporary
+  height: -10,
   parameters: [],
 }
 

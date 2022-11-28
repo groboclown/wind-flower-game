@@ -97,6 +97,7 @@ const SIDE_LENGTH = 1
 const SIDE_LENGTH_HALF = SIDE_LENGTH / 2
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3)
 const HEIGHT_SCALE = 0.2
+const EMPTY_TILE_HEIGHT = -5
 
 // For each triangle in the hexagon, the height on each point
 // is the average of the height of adjacent triangles.  This
@@ -254,15 +255,19 @@ export function createGrid(
       hexIndex = (column % 3) + (((row + 1) % 2) * 3)
     }
 
-    let all_y = [0, 0, 0]
+    let all_y = [EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT]
     for (let vertexI = 0; vertexI < 3; vertexI++) {
       const tileLookupPoints = HEX_TRI_HEIGHT_AVG_LOOKUP[hexIndex][vertexI]
       let count = 0
       let total = 0
       for (let adjI = 0; adjI < 3; adjI++) {
+        const adjTilePos = tileLookupPoints[adjI]
+        // The adjustment position performs both a relative position
+        //   lookup to the adjustment tile, and a translation from
+        //   the current position to the height map position.
         const adjTile = heightMap[
-          (column + tileLookupPoints[adjI][0])
-          + ((row + tileLookupPoints[adjI][1]) * heightMapWidth)
+          (column + adjTilePos[0])
+          + ((row + adjTilePos[1]) * heightMapWidth)
         ]
         if (adjTile.category !== null) {
           count++
@@ -325,7 +330,7 @@ export function createGrid(
 
     if (primary.tiles[tileI].category === null) {
       // How to set the alpha chanel on the triangle?
-      color.setRGB(1, 1, 1)
+      color.setRGB(0, 0, 0)
     } else {
       color.setRGB(primary.tiles[tileI].rgb[0], primary.tiles[tileI].rgb[1], primary.tiles[tileI].rgb[2]);
     }
@@ -447,4 +452,3 @@ function createHeightMap(
 
   return ret
 }
-

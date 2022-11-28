@@ -36,7 +36,7 @@ export default class GameBoardScene extends Scene3D {
 			//'lookAtCenter',
 
 			// include a Mesh and a set of shaders to simulate the effect of an azure sky
-			'sky',
+			// 'sky',
 
 			// include a set of controllers to allow the camera to orbit around a target.
 			'orbitControls',
@@ -53,6 +53,9 @@ export default class GameBoardScene extends Scene3D {
 		// TODO add in some other setup, like input controls.
 		//const camera = new THREE.PerspectiveCamera(27, window.innerWidth / window.innerHeight, 1, 3500)
 		//camera.position.z = 2750
+
+		// Background
+		this.third.scene.background = new THREE.Color( 0x010101 )
 
 		// Lighting
 		this.third.scene.add( new THREE.AmbientLight(0x444444))
