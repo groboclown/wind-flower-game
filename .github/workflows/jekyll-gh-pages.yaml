@@ -43,7 +43,7 @@ jobs:
           cd web-client
           npm install
           npm run build
-          mkdir -P ../_site/live
+          mkdir -p ../_site/live
           cp -R dist/* ../_site/live/.
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
