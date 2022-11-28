@@ -5,5 +5,5 @@
 //   embedding in a relative URL, we need to do some
 //   work to find the location of the 'ammo' library.
 export function getAmmoLibraryRef() {
-  return new URL('./ammo', import.meta.url).href
+  return `./${import.meta.env.BASE_URL}/ammo`
 }
