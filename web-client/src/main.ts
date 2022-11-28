@@ -16,7 +16,10 @@ const config: Phaser.Types.Core.GameConfig = {
   ...Canvas()
 }
 
+// In order to work with Vite's bundling and possible
+//   embedding in a relative URL, we need to do some
+//   work to find the location of the 'ammo' library.
 window.addEventListener('load', () => {
   enable3d(() => new Phaser.Game(config))
-  .withPhysics('/ammo')
+  .withPhysics(new URL('/ammo', import.meta.url).href)
 })
