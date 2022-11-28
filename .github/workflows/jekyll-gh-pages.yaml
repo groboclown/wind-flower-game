@@ -41,6 +41,7 @@ jobs:
       - name: Build web client
         run: |
           cd web-client
+          npm install
           npm run build
           mkdir -P ../_site/live
           cp -R dist/* ../_site/live/.
