@@ -43,6 +43,7 @@ jobs:
           cd web-client
           npm install
           npm run build
+          chmod +w ../_site
           mkdir -p ../_site/live
           cp -R dist/* ../_site/live/.
       - name: Upload artifact
