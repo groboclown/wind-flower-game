@@ -46,10 +46,14 @@ jobs:
           ( cd web-client && npm install )
           ( cd web-client && npm run build )
       - name: Assemble Documents
+        # TODO We desire to:
+        #   mv web-client/dist ./_site/live
+        # however there are absolute URLs in the live site.
         run: |
           mkdir -p _site
           cp -R ./_jekyll_site/* ./_site/.
-          mv web-client/dist ./_site/live
+          mv web-client/dist/index.html ./_site/live.html
+          cp -R web-client/dist/* ./_site/.
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
