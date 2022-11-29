@@ -16,10 +16,13 @@ export default class GameBoardScene extends Scene3D {
 	private gridBoard: ExtendedObject3D | null
 	private controls: Controls | null
 
+  private tmpFocusBox: ExtendedObject3D | null
+
   constructor() {
     super({ key: 'GameBoardScene' })
 		this.gridBoard = null
 		this.controls = null
+    this.tmpFocusBox = null
   }
 
   init() {
@@ -45,7 +48,7 @@ export default class GameBoardScene extends Scene3D {
       // 'sky',
 
       // include a set of controllers to allow the camera to orbit around a target.
-      'orbitControls',
+      // 'orbitControls',
 
       // create a ground platform in the scene.
       //   The ground platform measures 21x21x1, and it is positioned 0.5 under the origin.
@@ -59,8 +62,11 @@ export default class GameBoardScene extends Scene3D {
 		// Input Controls
     this.controls = createControls(this)
 
-		this.third.camera.position.set(-20, 6, 0)
-		this.third.camera.lookAt(this.third.scene.position)
+		// this.third.camera.position.set(-20, 6, 0)
+		// this.third.camera.lookAt(this.third.scene.position)
+    this.controls.positionAt(new THREE.Vector3(-20, 6, 0))
+    // this.controls.lookAt(this.third.scene.position)
+    this.controls.lookAt(new THREE.Vector3(-14, 0, 2))
 
     // Background
     this.third.scene.background = new THREE.Color(0x010101)
@@ -77,6 +83,16 @@ export default class GameBoardScene extends Scene3D {
     const light2 = new THREE.DirectionalLight(0xffffff, 1.5)
     light2.position.set(0, - 1, 0)
     this.third.scene.add(light2)
+
+    // show where the camera is pointing
+    this.tmpFocusBox = this.third.add.box({
+      x: -14,
+      y: 5,
+      z: 2,
+      width: .2,
+      height: 10,
+      depth: .2,
+    })
 
     /*
     // adds a box
@@ -130,6 +146,9 @@ export default class GameBoardScene extends Scene3D {
   update() {
 		console.debug('Running update')
 		this.controls?.update()
+    if (this.controls) {
+      this.tmpFocusBox?.position.copy(this.controls.getTarget())
+    }
 	}
 
   stateUpdated() {

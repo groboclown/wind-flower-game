@@ -1,25 +1,66 @@
 // Standard Controls for the game board
 import { Scene3D, THREE } from '@enable3d/phaser-extension'
 import { Input } from 'phaser'
-// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 
 export interface Controls {
   update(): void
   dispose(): void
-  lookAt(at: THREE.Vector3, speed: number): void
+  lookAt(at: THREE.Vector3): void
+  getTarget(): THREE.Vector3
+  positionAt(at: THREE.Vector3): void
 }
 
 
 export function createControls(scene: Scene3D): Controls {
-  return new CustomControls(scene)
+  // return new CustomControls(scene)
+  return new OrbitControlsWrapper(scene)
 }
+
+
+export class OrbitControlsWrapper implements Controls {
+  private orbit: OrbitControls
+
+  constructor(scene: Scene3D) {
+    this.orbit = new OrbitControls(
+      scene.third.camera,
+      document.getElementById('enable3d-phaser-canvas') || scene.third.renderer.domElement,
+    )
+    // min == 0 means can look straight down.
+    this.orbit.minPolarAngle = 0
+    // max == PI / 2 means can looks straight across.
+    this.orbit.maxPolarAngle = Math.PI / 3
+  }
+
+  update() {
+    // do nothing
+  }
+
+  dispose() {
+    this.orbit.dispose()
+  }
+
+  lookAt(at: THREE.Vector3) {
+    this.orbit.target.set(at.x, at.y, at.z)
+    this.orbit.update()
+  }
+
+  positionAt(at: THREE.Vector3) {
+    this.orbit.object.position.set(at.x, at.y, at.z)
+  }
+
+  getTarget(): THREE.Vector3 {
+    return new THREE.Vector3().copy(this.orbit.target)
+  }
+}
+
 
 const EPS = 0.000001
 const TWO_PI = 2 * Math.PI;
 
 
-class CustomControls implements Controls {
+export class CustomControls implements Controls {
   private camera: THREE.Camera
   private target: THREE.Vector3
   private input: Input.InputPlugin
@@ -39,16 +80,16 @@ class CustomControls implements Controls {
 
   private rotateStart: THREE.Vector2
   private rotateEnd: THREE.Vector2
-  private rotateDelta: THREE.Vector2
+  // private rotateDelta: THREE.Vector2
 
   private panOffset: THREE.Vector3
   private panStart: THREE.Vector2
   private panEnd: THREE.Vector2
-  private panDelta: THREE.Vector2
+  // private panDelta: THREE.Vector2
 
-  private dollyStart: THREE.Vector2
-  private dollyEnd: THREE.Vector2
-  private dollyDelta: THREE.Vector2
+  // private dollyStart: THREE.Vector2
+  // private dollyEnd: THREE.Vector2
+  // private dollyDelta: THREE.Vector2
 
   minDistance: number
   maxDistance: number
@@ -107,15 +148,15 @@ class CustomControls implements Controls {
 
 		this.rotateStart = new THREE.Vector2()
 		this.rotateEnd = new THREE.Vector2()
-		this.rotateDelta = new THREE.Vector2()
+		// this.rotateDelta = new THREE.Vector2()
 
 		this.panStart = new THREE.Vector2()
 		this.panEnd = new THREE.Vector2()
-		this.panDelta = new THREE.Vector2()
+		// this.panDelta = new THREE.Vector2()
 
-		this.dollyStart = new THREE.Vector2()
-		this.dollyEnd = new THREE.Vector2()
-		this.dollyDelta = new THREE.Vector2()
+		// this.dollyStart = new THREE.Vector2()
+		// this.dollyEnd = new THREE.Vector2()
+		// this.dollyDelta = new THREE.Vector2()
 
     this.input.mouse.onMouseDown = (event: MouseEvent) => self.onMouseButton(event)
     this.input.mouse.onMouseUp = (event: MouseEvent) => self.onMouseButton(event)
@@ -162,8 +203,16 @@ class CustomControls implements Controls {
     this.input.mouse.stopListeners()
   }
 
-  lookAt(at: THREE.Vector3, speed: number) {
+  lookAt(at: THREE.Vector3) {
     this.target = at
+  }
+
+  getTarget(): THREE.Vector3 {
+    return new THREE.Vector3().copy(this.target)
+  }
+
+  positionAt(at: THREE.Vector3) {
+    this.camera.position.set(at.x, at.y, at.z)
   }
 
   onMouseButton(event: MouseEvent) {
@@ -222,11 +271,11 @@ class CustomControls implements Controls {
   }
 
   zoomCameraStart(amount: number) {
-
+    console.log(`todo: zoom start at ${amount}`)
   }
 
   zoomCameraAdditonal(amount: number) {
-
+    console.log(`todo: zoom additionally by ${amount}`)
   }
 
 

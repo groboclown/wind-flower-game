@@ -1,8 +1,8 @@
 // Client-Server API.
-import { JsonLookup } from '../lib/typed-json'
+import { JsonLookup, JSONValueType } from '../lib/typed-json'
 
 export interface RestApiConnection {
-    getJson(path: string, parameters: Map<string, string>): Promise<Map<string, JsonLookup>>
+    getJson(path: string, parameters: JSONValueType): Promise<JsonLookup>
 }
 
 export class HostApi {
