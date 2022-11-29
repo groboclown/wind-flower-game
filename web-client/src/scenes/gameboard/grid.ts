@@ -215,140 +215,145 @@ export function createGrid(
   let z = (primary.position.y * BASE_LENGTH) + ((boardDim.maxY + boardDim.minY) / 2)
   let vIdx = 0
   for (let tileI = 0; tileI < primary.tiles.length; tileI++) {
-    const crOdd = (column + row) & 0x1
+    // Don't add the empty tiles.  But don't continue right
+    //   away, because we need to run the loop variable increase
+    //   at the end of this block.
+    if (primary.tiles[tileI].category !== null) {
+      const crOdd = (column + row) & 0x1
 
-    // -------------------------------------
-    // 2D (x-z) Location Calculation
-    // Points A, B, C:
-    //      + A
-    //     / \
-    //  B +---+ C
-    // To flip the z coordinate, it's (z + (hyOdd * BASE_LENGTH)) or (z + ((1 - hyOdd) * BASE_LENGTH))
-    const ax = x + SIDE_LENGTH_HALF
-    const az = z + (crOdd * BASE_LENGTH)
-    let bx = x
-    let bz = z + ((1 - crOdd) * BASE_LENGTH)
-    let cx = x + SIDE_LENGTH
-    let cz = bz
+      // -------------------------------------
+      // 2D (x-z) Location Calculation
+      // Points A, B, C:
+      //      + A
+      //     / \
+      //  B +---+ C
+      // To flip the z coordinate, it's (z + (hyOdd * BASE_LENGTH)) or (z + ((1 - hyOdd) * BASE_LENGTH))
+      const ax = x + SIDE_LENGTH_HALF
+      const az = z + (crOdd * BASE_LENGTH)
+      let bx = x
+      let bz = z + ((1 - crOdd) * BASE_LENGTH)
+      let cx = x + SIDE_LENGTH
+      let cz = bz
 
-    if (crOdd !== 0) {
-      // Need to swap the b & c to accomodate the right-hand rule
-      // to make the normals all point in the right direction
-      let tmpx = bx
-      let tmpz = bz
-      bx = cx
-      bz = cz
-      cx = tmpx
-      cz = tmpz
-    }
+      if (crOdd !== 0) {
+        // Need to swap the b & c to accomodate the right-hand rule
+        // to make the normals all point in the right direction
+        const tmpx = bx
+        const tmpz = bz
+        bx = cx
+        bz = cz
+        cx = tmpx
+        cz = tmpz
+      }
 
-    // -------------------------------------
-    // Height Calculation
-    // Find the right height for each vertex.  This is
-    // the average of 3 tiles (1 of which is the current tile).
-    // This requires us to first perform a reverse tile index to hexagon triangle
-    // discovery.
-    let hexIndex: number
-    if (column % 6 < 3) {
-      hexIndex = (column % 3) + ((row % 2) * 3)
-    } else {
-      hexIndex = (column % 3) + (((row + 1) % 2) * 3)
-    }
+      // -------------------------------------
+      // Height Calculation
+      // Find the right height for each vertex.  This is
+      // the average of 3 tiles (1 of which is the current tile).
+      // This requires us to first perform a reverse tile index to hexagon triangle
+      // discovery.
+      let hexIndex: number
+      if (column % 6 < 3) {
+        hexIndex = (column % 3) + ((row % 2) * 3)
+      } else {
+        hexIndex = (column % 3) + (((row + 1) % 2) * 3)
+      }
 
-    let all_y = [EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT]
-    for (let vertexI = 0; vertexI < 3; vertexI++) {
-      const tileLookupPoints = HEX_TRI_HEIGHT_AVG_LOOKUP[hexIndex][vertexI]
-      let count = 0
-      let total = 0
-      for (let adjI = 0; adjI < 3; adjI++) {
-        const adjTilePos = tileLookupPoints[adjI]
-        // The adjustment position performs both a relative position
-        //   lookup to the adjustment tile, and a translation from
-        //   the current position to the height map position.
-        const adjTile = heightMap[
-          (column + adjTilePos[0])
-          + ((row + adjTilePos[1]) * heightMapWidth)
-        ]
-        if (adjTile.category !== null) {
-          count++
-          total += adjTile.height
+      const all_y = [EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT, EMPTY_TILE_HEIGHT]
+      for (let vertexI = 0; vertexI < 3; vertexI++) {
+        const tileLookupPoints = HEX_TRI_HEIGHT_AVG_LOOKUP[hexIndex][vertexI]
+        let count = 0
+        let total = 0
+        for (let adjI = 0; adjI < 3; adjI++) {
+          const adjTilePos = tileLookupPoints[adjI]
+          // The adjustment position performs both a relative position
+          //   lookup to the adjustment tile, and a translation from
+          //   the current position to the height map position.
+          const adjTile = heightMap[
+            (column + adjTilePos[0])
+            + ((row + adjTilePos[1]) * heightMapWidth)
+          ]
+          if (adjTile.category !== null) {
+            count++
+            total += adjTile.height
+          }
+        }
+        if (count > 0) {
+          all_y[vertexI] = total / count
         }
       }
-      if (count > 0) {
-        all_y[vertexI] = total / count
+
+      const ay = all_y[0] * HEIGHT_SCALE
+      const by = all_y[1] * HEIGHT_SCALE
+      const cy = all_y[2] * HEIGHT_SCALE
+
+      // -------------------------------
+      // Update the mesh values
+
+      positions[vIdx] = ax
+      positions[vIdx + 1] = ay
+      positions[vIdx + 2] = az
+
+      positions[vIdx + 3] = bx
+      positions[vIdx + 4] = by
+      positions[vIdx + 5] = bz
+
+      positions[vIdx + 6] = cx
+      positions[vIdx + 7] = cy
+      positions[vIdx + 8] = cz
+
+      // flat face normals
+
+      pA.set(ax, ay, az)
+      pB.set(bx, by, bz)
+      pC.set(cx, cy, cz)
+
+      cb.subVectors(pC, pB)
+      ab.subVectors(pA, pB)
+      cb.cross(ab)
+
+      cb.normalize()
+
+      const nx = cb.x
+      const ny = cb.y
+      const nz = cb.z
+
+      normals[vIdx] = nx
+      normals[vIdx + 1] = ny
+      normals[vIdx + 2] = nz
+
+      normals[vIdx + 3] = nx
+      normals[vIdx + 4] = ny
+      normals[vIdx + 5] = nz
+
+      normals[vIdx + 6] = nx
+      normals[vIdx + 7] = ny
+      normals[vIdx + 8] = nz
+
+      // colors (in range 0-1)
+
+      if (primary.tiles[tileI].category === null) {
+        // How to set the alpha chanel on the triangle?
+        color.setRGB(0, 0, 0)
+      } else {
+        color.setRGB(primary.tiles[tileI].rgb[0], primary.tiles[tileI].rgb[1], primary.tiles[tileI].rgb[2])
       }
+
+      colors[vIdx] = color.r
+      colors[vIdx + 1] = color.g
+      colors[vIdx + 2] = color.b
+
+      colors[vIdx + 3] = color.r
+      colors[vIdx + 4] = color.g
+      colors[vIdx + 5] = color.b
+
+      colors[vIdx + 6] = color.r
+      colors[vIdx + 7] = color.g
+      colors[vIdx + 8] = color.b
+
+      vIdx += 3 * 3
     }
 
-    const ay = all_y[0] * HEIGHT_SCALE
-    const by = all_y[1] * HEIGHT_SCALE
-    const cy = all_y[2] * HEIGHT_SCALE
-
-    // -------------------------------
-    // Update the mesh values
-
-    positions[vIdx] = ax;
-    positions[vIdx + 1] = ay;
-    positions[vIdx + 2] = az;
-
-    positions[vIdx + 3] = bx;
-    positions[vIdx + 4] = by;
-    positions[vIdx + 5] = bz;
-
-    positions[vIdx + 6] = cx;
-    positions[vIdx + 7] = cy;
-    positions[vIdx + 8] = cz;
-
-    // flat face normals
-
-    pA.set(ax, ay, az);
-    pB.set(bx, by, bz);
-    pC.set(cx, cy, cz);
-
-    cb.subVectors(pC, pB);
-    ab.subVectors(pA, pB);
-    cb.cross(ab);
-
-    cb.normalize();
-
-    const nx = cb.x;
-    const ny = cb.y;
-    const nz = cb.z;
-
-    normals[vIdx] = nx;
-    normals[vIdx + 1] = ny;
-    normals[vIdx + 2] = nz;
-
-    normals[vIdx + 3] = nx;
-    normals[vIdx + 4] = ny;
-    normals[vIdx + 5] = nz;
-
-    normals[vIdx + 6] = nx;
-    normals[vIdx + 7] = ny;
-    normals[vIdx + 8] = nz;
-
-    // colors (in range 0-1)
-
-    if (primary.tiles[tileI].category === null) {
-      // How to set the alpha chanel on the triangle?
-      color.setRGB(0, 0, 0)
-    } else {
-      color.setRGB(primary.tiles[tileI].rgb[0], primary.tiles[tileI].rgb[1], primary.tiles[tileI].rgb[2]);
-    }
-
-    colors[vIdx] = color.r;
-    colors[vIdx + 1] = color.g;
-    colors[vIdx + 2] = color.b;
-
-    colors[vIdx + 3] = color.r;
-    colors[vIdx + 4] = color.g;
-    colors[vIdx + 5] = color.b;
-
-    colors[vIdx + 6] = color.r;
-    colors[vIdx + 7] = color.g;
-    colors[vIdx + 8] = color.b;
-
-
-    vIdx += 3 * 3
     column++
     x += SIDE_LENGTH_HALF
     if (column >= segmentSize.width) {
@@ -369,13 +374,17 @@ export function createGrid(
   // console.log(`Hex 0 (2, 1): (${positions[18+rowlen]}, ${positions[19+rowlen]}, ${positions[20+rowlen]}) (${positions[21+rowlen]}, ${positions[22+rowlen]}, ${positions[23+rowlen]}) (${positions[24+rowlen]}, ${positions[25+rowlen]}, ${positions[26+rowlen]})`)
   // console.log(`Last tile: (${positions[positions.length-3]}, ${positions[positions.length-2]}, ${positions[positions.length-1]})`)
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  // Doesn't seem like the array needs to be trimmed to the vIdx size.
+  // However, there may be subtle issues we need to deal with if that's not the case.
+  // May need to run "slice" on it.
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, vIdx), 3))
+  geometry.setAttribute('normal', new THREE.BufferAttribute(normals.slice(0, vIdx), 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, vIdx), 3))
 
   geometry.computeBoundingSphere()
 
-  let material = new THREE.MeshPhongMaterial({
+  const material = new THREE.MeshPhongMaterial({
     color: 0xaaaaaa, specular: 0xffffff, shininess: 250,
     side: THREE.DoubleSide, vertexColors: true
   })
@@ -439,12 +448,12 @@ function createHeightMap(
 
   // Fill in the center
   for (let segRow = 0; segRow < segmentHeight; segRow++) {
-    let mapRow = segRow + 1
+    const mapRow = segRow + 1
     for (let segCol = 0; segCol < segmentWidth; segCol++) {
-      let mapCol = segCol + 1
+      const mapCol = segCol + 1
 
-      let segIndex = segCol + (segRow * segmentWidth)
-      let mapIndex = mapCol + (mapRow * mapWidth)
+      const segIndex = segCol + (segRow * segmentWidth)
+      const mapIndex = mapCol + (mapRow * mapWidth)
 
       ret[mapIndex] = segments[CENTER_SEGMENT_INDEX].tiles[segIndex]
     }

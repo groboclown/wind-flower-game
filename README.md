@@ -1,8 +1,11 @@
 # Wind Flower
 
+[The Site](https://groboclown.github.io/wind-flower-game)
+
 ![wind flower icon](web-client/public/icons/fav-icon.svg)
 
 Game where players take turns creating the map to grow their territory.
+
 
 ## Status
 

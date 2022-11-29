@@ -67,10 +67,10 @@ export interface GameLobbyState {
 
 function initialGameLobbyState(): GameLobbyState {
   return {
-    gameName: "My Game",
+    gameName: 'My Game',
 
     // TODO generate a random string.
-    gameId: "a1",
+    gameId: 'a1',
 
     players: [],
     clientPlayerIndex: -1,

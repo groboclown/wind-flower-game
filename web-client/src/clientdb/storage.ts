@@ -1,121 +1,68 @@
 // Loads the client db structures.
 
-import { User, Server, ClientStore } from './structs'
+// TODO have this work instead with the redux store.
 
-// Load the existing client store information
-export async function loadClientStore(
+import { User, Server, ClientStore } from './structs'
+import { parseJsonLookup } from '../lib/typed-json'
+
+// Generic JSON typing.  Should probably be moved to a standard place.
+
+
+// loadClientStore Load the existing client store information
+export function loadClientStore(
     serverName: string | null,
     serverPublicKey: string | null,
-): Promise<ClientStore> {
-    let user = loadUserStore()
-    let server = loadServerStore(serverName, serverPublicKey)
-    return new ClientStoreImpl(user, server)
+): ClientStore {
+    const user = loadUserStore()
+    const server = loadServerStore(serverName, serverPublicKey)
+    return { user, server }
 }
 
-// Store a new user and return the new client store information.
-export async function createUser(
+// createUser Store a new user and return the new client store information.
+export function createUser(
     originalClient: ClientStore,
     newUser: User,
-): Promise<ClientStore> {
+): ClientStore {
     storeUserStore(newUser)
-    return new ClientStoreImpl(newUser, originalClient.server)
+    return { user: newUser, server: originalClient.server }
 }
-
-
-
-class UserImpl implements User {
-    humanName: string
-    privateKey: string
-    publicKey: string
-    locale: string
-    localTz: string
-    exists: boolean
-
-    constructor(args: {
-        humanName: string,
-        privateKey: string,
-        publicKey: string,
-        locale: string,
-        localTz: string,
-        exists: boolean,
-    }) {
-        this.humanName = args.humanName
-        this.privateKey = args.privateKey
-        this.publicKey = args.publicKey
-        this.locale = args.locale
-        this.localTz = args.localTz
-        this.exists = args.exists
-    }
-}
-
-class ServerImpl implements Server {
-    serverName: string
-    publicKey: string
-
-    constructor(
-        serverName: string,
-        publicKey: string,
-    ) {
-        this.serverName = serverName
-        this.publicKey = publicKey
-    }
-}
-
-
-class ClientStoreImpl implements ClientStore {
-    user: User
-    server: Server
-
-    constructor(
-        user: User,
-        server: Server,
-    ) {
-        this.user = user
-        this.server = server
-    }
-}
-
 
 
 // FIXME PLACEHOLDER
-function createDefaultUserData(): object {
-    console.error("FIXME USING PLACEHOLDER USER DATA.")
+function createDefaultUserData(): User {
+    console.error('FIXME USING PLACEHOLDER USER DATA.')
     return {
-        humanName: "User",
-        privateKey: "really private",
-        publicKey: "really public",
-        locale: "en-us",
-        localTz: "UTC",
+        humanName: 'User',
+        privateKey: 'really private',
+        publicKey: 'really public',
+        locale: 'en-us',
+        localTz: 'UTC',
+        exists: false,
     }
 }
 
 
 function loadUserStore(): User {
     // Must be stored local storage.
-    let localData = window.localStorage.getItem("user-settings")
-    let rawData: any
-    let exists: boolean
-    try {
-        rawData = JSON.parse(localData ? localData : "")
-        exists = true
-    } catch (err) {
-        // Should be an error.
-        rawData = createDefaultUserData()
-        exists = false
+    // Strange that it's not a promise.  Oh well.
+    const localData = window.localStorage.getItem('user-settings')
+    const jsonData = parseJsonLookup(localData || '')
+    if (typeof jsonData === 'string') {
+        return createDefaultUserData()
     }
-    return new UserImpl({
-        humanName: rawData?.humanName,
-        privateKey: rawData?.privateKey,
-        publicKey: rawData?.publicKey,
-        locale: rawData?.locale,
-        localTz: rawData?.localTz,
-        exists,
-    })
+    return {
+        humanName: jsonData.asStrOr('-not set-', 'humanName'),
+        privateKey: jsonData.asStrOr('-not set-', 'privateKey'),
+        publicKey: jsonData.asStrOr('-not set-', 'publicKey'),
+        locale: jsonData.asStrOr('-not set-', 'locale'),
+        localTz: jsonData.asStrOr('-not set-', 'localTz'),
+        exists: true,
+    }
 }
 
 
 function storeUserStore(user: User) {
-    window.localStorage.setItem("user-settings", JSON.stringify({
+    window.localStorage.setItem('user-settings', JSON.stringify({
         humanName: user.humanName,
         privateKey: user.privateKey,
         publicKey: user.publicKey,
@@ -131,25 +78,24 @@ function loadServerStore(
 ): Server {
     // Must be stored in a cookie or passed from the web page.
     if (serverName != null && serverPublicKey != null) {
-        return new ServerImpl(serverName, serverPublicKey)
+        return { serverName, publicKey: serverPublicKey }
     }
-    let cookieData = getCookie("server-description")
-    let rawData: any
-    try {
-        rawData = JSON.parse(cookieData)
-    } catch (err) {
-        // Should be an error.
-        rawData = createDefaultUserData()
+    const cookieData = getCookie('server-description')
+    const jsonData = parseJsonLookup(cookieData || '')
+    if (typeof jsonData === 'string') {
+        // Should be an error.  Or, we're running in single player / disconnected mode.
+        return { serverName: 'unknown', publicKey: 'unknown' }
     }
-    return new ServerImpl(
-        rawData?.serverName,
-        rawData?.serverPublicKey,
-    )
+    return {
+        serverName: jsonData.asStrOr('-not set-', 'serverName'),
+        publicKey: jsonData.asStrOr('-not set-', 'serverPublicKey'),
+    }
 }
 
 
 // General utils for managing cookies in Typescript.
 //   From https://gist.github.com/joduplessis/7b3b4340353760e945f972a69e855d11
+/*
 export function setCookie(name: string, val: string) {
     const date = new Date();
     const value = val;
@@ -161,13 +107,7 @@ export function setCookie(name: string, val: string) {
     document.cookie = name+"="+value+"; expires="+date.toUTCString()+"; path=/";
 }
 
-export function getCookie(name: string): string {
-    const value = "; " + document.cookie;
-    const parts = value.split("; " + name + "=");
-    return parts.pop()?.split(";").shift() || ""
-}
-
-export function deleteCookie(name: string) {
+function deleteCookie(name: string) {
     const date = new Date();
 
     // Set it expire in -1 days
@@ -175,4 +115,12 @@ export function deleteCookie(name: string) {
 
     // Set it
     document.cookie = name+"=; expires="+date.toUTCString()+"; path=/";
+}
+
+*/
+
+function getCookie(name: string): string {
+    const value = '; ' + document.cookie
+    const parts = value.split('; ' + name + '=')
+    return parts.pop()?.split(';').shift() || ''
 }

@@ -6,7 +6,10 @@ export default class PreloadScene extends Phaser.Scene {
     super({ key: 'PreloadScene' })
   }
 
-  preload() {}
+  preload() {
+    // Should preload data here.
+    console.debug('Preloading data in preload scene.')
+  }
 
   create() {
     this.scene.start('GameBoardScene')

@@ -151,10 +151,10 @@ export const gameBoardReducer = createReducer(
             let checkIndex: keyof(BoardPosition)
             if (xSegs.length < ySegs.length) {
               segList = xSegs
-              checkIndex = "y"
+              checkIndex = 'y'
             } else {
               segList = ySegs
-              checkIndex = "x"
+              checkIndex = 'x'
             }
             for (let i = 0; i < segList.length; i++) {
               const existingSeg = state.segments[segList[i]]

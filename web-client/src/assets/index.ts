@@ -6,7 +6,12 @@
 //   work to find the location of the 'ammo' library.
 export function getAmmoLibraryRef() {
   // See https://vitejs.dev/guide/build.html#public-base-path
-  // TypeScript barfs on this; that's why this file is a .js not a .ts file.
+  // If we used the import.meta.env.BASE_URL format, TypeScript
+  //   would throw an error because it doesn't know about vite's
+  //   dynamic insertion of the env value.
   // return `./${import.meta.env.BASE_URL}/ammo`
+  // return `${import.meta.env.BASE_URL}ammo`
+  // But it turns out, this value will work both for absolute
+  //   paths, local tests, and embedded paths.
   return './ammo'
 }

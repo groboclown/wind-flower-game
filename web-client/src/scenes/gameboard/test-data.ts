@@ -178,42 +178,42 @@ const EMPTY_TILE: Tile = {
 }
 
 const RED_TILE: Tile = {
-  category: "red",
+  category: 'red',
   rgb: [0.8, 0.2, 0.2],  // temporary
   height: 0,
   parameters: [],
 }
 
 const GREEN_TILE: Tile = {
-  category: "green",
+  category: 'green',
   rgb: [0.2, 0.8, 0.2],  // temporary
   height: 0,
   parameters: [],
 }
 
 const BLUE_TILE: Tile = {
-  category: "blue",
+  category: 'blue',
   rgb: [0.2, 0.2, 0.8],  // temporary
   height: 0,
   parameters: [],
 }
 
 const YELLOW_TILE: Tile = {
-  category: "yellow",
+  category: 'yellow',
   rgb: [0.8, 0.8, 0.2],  // temporary
   height: 0,
   parameters: [],
 }
 
 const CYAN_TILE: Tile = {
-  category: "cyan",
+  category: 'cyan',
   rgb: [0.2, 0.8, 0.8],  // temporary
   height: 0,
   parameters: [],
 }
 
 const MAGENTA_TILE: Tile = {
-  category: "magenta",
+  category: 'magenta',
   rgb: [0.8, 0.2, 0.8],  // temporary
   height: 0,
   parameters: [],
@@ -259,7 +259,7 @@ function hexTokensToSegment(
       const token = tokens[hexPos++]
       if (token !== null && col + 2 < size.width) {
         const odd = hexX & 0x1
-        let tileRow = row + odd
+        const tileRow = row + odd
         if (tileRow + 1 < size.height) {
           // Should be an exact copy of each tile,
           //   but we'll add some color variance to be able to determine

@@ -28,7 +28,7 @@
   "include": [
     "src/**/*.ts",
     "node_modules/@types"
-, "src/assets/index.js"  ],
+, "src/assets/index.ts"  ],
   "exclude": [
     ".git",
     "node_modules"

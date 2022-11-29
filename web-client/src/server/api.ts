@@ -1,7 +1,8 @@
 // Client-Server API.
+import { JsonLookup } from '../lib/typed-json'
 
 export interface RestApiConnection {
-    getJson(path: string, parameters: Map<string, string>): Map<String, any>
+    getJson(path: string, parameters: Map<string, string>): Promise<Map<string, JsonLookup>>
 }
 
 export class HostApi {
@@ -13,8 +14,9 @@ export class HostApi {
         this.connection = connection
     }
 
-    async createAccount(
+    async createAccount(  // eslint-disable-line @typescript-eslint/require-await
+
     ) {
-        throw new Error("not implemented: " + this.connection)
+        return await this.connection.getJson('/some/api/path', {})
     }
 }

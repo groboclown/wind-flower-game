@@ -1,7 +1,7 @@
 // Information about the game turn state.  Both historic and current.
 // This data is sent by the server to the client.
 
-import { BoardPosition } from "./board"
+import { BoardPosition } from './board'
 
 
 // A token drawn from the server.
