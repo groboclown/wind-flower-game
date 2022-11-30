@@ -1,6 +1,22 @@
 // Create the grid mesh.
-import { THREE, ExtendedMesh } from 'enable3d'
+import { THREE, ExtendedMesh, ExtendedObject3D } from 'enable3d'
 import { GameBoardSegment, BoardSize, BoardRect, Tile } from '../../store/state/board'
+
+
+export interface GridBoard3D {
+  readonly object: ExtendedObject3D
+  readonly geometry: THREE.BufferGeometry
+  readonly mesh: ExtendedMesh
+
+  // Lookup faces by the token index.
+  //   Empty tokens have a 'null' value
+  // The 'face' here is the position in the geometry for the
+  // first point on the triangle.
+  readonly tokenIndexToFaceIndex: (number[] | null)[]
+
+  // Lookup tokens by the face index.
+  readonly positionIndexToTokenIndex: number[]
+}
 
 
 // Each tile in each segment is an equalateral triangle.
@@ -156,6 +172,44 @@ const HEX_TRI_HEIGHT_AVG_LOOKUP: number[][][][] = [
   ],
 ]
 
+// For mapping a face to a token point, use a lookup to map a single
+//   point on its face to an outer point on the token.
+//   take the root index of the face and add this number to it,
+//   which is a multiple of the number of values for a point (0, 3, or 6).
+const TOKEN_POINT_INDEX: number[] = [
+  // T(0,0) -> P0; even, so point A
+  0,
+  // T(1, 0) -> P1; odd, so point B
+  3,
+  // T(2, 0) -> P4; even, so point C
+  6,
+  // T(0, 1) -> P2; odd, so point C
+  6,
+  // T(1, 1) -> P5; even, so point B
+  3,
+  // T(2, 1) -> P6; odd, so point A
+  0,
+]
+// For mapping the token hex index -> the order for drawing.
+//   Because we must have the right-hand rule, the points
+//   must be P6, P4, P1, P0, P2, P5.
+//   See the above lookup index for the hex index to point map.
+const TOKEN_POINT_ORDER_INDEX: number[] = [
+  // T(0, 0) -> P0; index 3
+  3,
+  // T(1, 0) -> P1; index 2
+  2,
+  // T(2, 0) -> P4; index 1
+  1,
+  // T(0, 1) -> P2; index 4
+  4,
+  // T(1, 1) -> P5; index 5
+  5,
+  // T(2, 1) -> P6; index 0
+  0,
+]
+
+
 // in a 3x3 grid, index 4 is the center.
 const CENTER_SEGMENT_INDEX = 4
 const UL_SEGMENT_INDEX = 0
@@ -182,8 +236,14 @@ export function createGrid(
   segments: GameBoardSegment[],
   segmentSize: BoardSize,
   boardDim: BoardRect,
-): ExtendedMesh {
+): GridBoard3D {
+  const tokenWidth = (segmentSize.width / 3) | 0
+  const tokenHeight = (segmentSize.height / 2) | 0
   const triangleCount = segmentSize.width * segmentSize.height
+
+  const tokenIndexToFaceIndex: (number[] | null)[] = new Array<number[] | null>(tokenWidth * tokenHeight)
+  const positionIndexToTokenIndex: number[] = new Array<number>(triangleCount)
+
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array( triangleCount * 3 * 3 )
 	const normals = new Float32Array( triangleCount * 3 * 3 )
@@ -286,6 +346,23 @@ export function createGrid(
       const ay = all_y[0] * HEIGHT_SCALE
       const by = all_y[1] * HEIGHT_SCALE
       const cy = all_y[2] * HEIGHT_SCALE
+
+      // -------------------------------------
+      // Hex Token Lookup Calculation
+      const tokenIndex = ((column / 3) | 0) + (((row / 2) | 0) * tokenWidth)
+      positionIndexToTokenIndex[vIdx] = tokenIndex
+      positionIndexToTokenIndex[vIdx + 3] = tokenIndex
+      positionIndexToTokenIndex[vIdx + 6] = tokenIndex
+      if (!tokenIndexToFaceIndex[tokenIndex]) {
+        tokenIndexToFaceIndex[tokenIndex] = [0, 0, 0, 0, 0, 0]
+      }
+      // We must map this hex location to a vertex on the token.
+      // This is a multiple mapping, from finding the corresponding position for this
+      //   triangle's set of points, to finding the order for this hex index in the face index list.
+
+      // tell TypeScript that we know it can't be null/undefined at this point.
+      (tokenIndexToFaceIndex[tokenIndex] as number[])[TOKEN_POINT_ORDER_INDEX[hexIndex]] = vIdx + TOKEN_POINT_INDEX[hexIndex]
+      console.debug(`${vIdx} -> ${tokenIndex}`)
 
       // -------------------------------
       // Update the mesh values
@@ -390,7 +467,16 @@ export function createGrid(
   })
 
   const mesh = new ExtendedMesh(geometry, material)
-  return mesh
+  const object = new ExtendedObject3D()
+  object.add(mesh)
+
+  return {
+    object,
+    geometry,
+    mesh,
+    positionIndexToTokenIndex,
+    tokenIndexToFaceIndex,
+  }
 }
 
 

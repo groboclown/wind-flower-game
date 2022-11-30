@@ -10,6 +10,8 @@ export interface Controls {
   lookAt(at: THREE.Vector3): void
   getTarget(): THREE.Vector3
   positionAt(at: THREE.Vector3): void
+  registerOnUpdateListener(callback: (controls: Controls) => void): void
+  getScreenFocusPositions(): THREE.Vector3[]
 }
 
 
@@ -21,20 +23,27 @@ export function createControls(scene: Scene3D): Controls {
 
 export class OrbitControlsWrapper implements Controls {
   private orbit: OrbitControls
+  private tickListener: ((controls: Controls) => void) | null
+  private orbitUpdate: (() => boolean)
 
   constructor(scene: Scene3D) {
     this.orbit = new OrbitControls(
       scene.third.camera,
       document.getElementById('enable3d-phaser-canvas') || scene.third.renderer.domElement,
     )
+    this.orbitUpdate = this.orbit.update
+    this.orbit.update = () => this.tick()
+
     // min == 0 means can look straight down.
     this.orbit.minPolarAngle = 0
     // max == PI / 2 means can looks straight across.
     this.orbit.maxPolarAngle = Math.PI / 3
+
+    this.tickListener = null
   }
 
   update() {
-    // do nothing
+    this.tick()
   }
 
   dispose() {
@@ -52,6 +61,30 @@ export class OrbitControlsWrapper implements Controls {
 
   getTarget(): THREE.Vector3 {
     return new THREE.Vector3().copy(this.orbit.target)
+  }
+
+  registerOnUpdateListener(callback: (controls: Controls) => void): void {
+    this.tickListener = callback
+  }
+
+  getScreenFocusPositions(): THREE.Vector3[] {
+    // Each touch + mouse
+    return []
+  }
+
+  // Internal override for the control update call.
+  private tick(): boolean {
+    // console.log(`Control tick`)
+    if (typeof this.orbitUpdate !== 'function') {
+      console.log(`ERROR updated orbitUpdate :: ${typeof this.orbitUpdate}`)
+      return false
+    }
+    const updater = this.orbitUpdate
+    const ret = updater()
+    if (this.tickListener !== null) {
+      this.tickListener(this)
+    }
+    return ret
   }
 }
 
@@ -166,6 +199,14 @@ export class CustomControls implements Controls {
     // this.input.gamepad.gamepads[0]?.addListener(this.onGamePad)
   }
 
+  registerOnUpdateListener(): void {
+    // do nothing
+  }
+
+  getScreenFocusPositions(): THREE.Vector3[] {
+    return []
+  }
+
   update() {
     const cursors = this.input.keyboard.createCursorKeys()
     if (cursors.up.isDown) {
@@ -271,11 +312,11 @@ export class CustomControls implements Controls {
   }
 
   zoomCameraStart(amount: number) {
-    console.log(`todo: zoom start at ${amount}`)
+    // console.log(`todo: zoom start at ${amount}`)
   }
 
   zoomCameraAdditonal(amount: number) {
-    console.log(`todo: zoom additionally by ${amount}`)
+    // console.log(`todo: zoom additionally by ${amount}`)
   }
 
 
