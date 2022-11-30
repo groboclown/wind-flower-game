@@ -1,6 +1,6 @@
 # Wind Flower
 
-[The Site](https://groboclown.github.io/wind-flower-game)
+[The Fancy Site](https://groboclown.github.io/wind-flower-game)
 
 ![wind flower icon](web-client/public/icons/fav-icon.svg)
 
@@ -16,6 +16,8 @@ Current Status:
     * Able to show hex grid in 3d.
 * server:
     * Established general PHP framework.
+* database:
+    * Some initial schema
 
 
 ## Local Environment Setup
