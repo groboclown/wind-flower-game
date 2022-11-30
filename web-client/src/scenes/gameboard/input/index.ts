@@ -312,11 +312,11 @@ export class CustomControls implements Controls {
   }
 
   zoomCameraStart(amount: number) {
-    // console.log(`todo: zoom start at ${amount}`)
+    console.debug(`todo: zoom start at ${amount}`)
   }
 
   zoomCameraAdditonal(amount: number) {
-    // console.log(`todo: zoom additionally by ${amount}`)
+    console.debug(`todo: zoom additionally by ${amount}`)
   }
 
 
