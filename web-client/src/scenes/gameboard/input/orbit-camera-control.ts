@@ -526,4 +526,22 @@ export class OrbitCameraControl implements CameraControl {
     this.pan(- this.keyPanSpeed, 0, clientWidth, clientHeight);
     this.update();
   }
+
+  eventRotateClockwise(_clientWidth: integer, _clientHeight: integer): void {
+    // TODO a better constant
+    this.rotateLeft(Math.PI / -128)
+  }
+
+  eventRotateCounterClockwise(_clientWidth: integer, _clientHeight: integer): void {
+    // TODO a better constant
+    this.rotateLeft(Math.PI / 128)
+  }
+
+  eventRotateUp(_clientWidth: integer, _clientHeight: integer): void {
+    this.rotateUp(Math.PI / 128)
+  }
+
+  eventRotateDown(_clientWidth: integer, _clientHeight: integer): void {
+    this.rotateUp(Math.PI / -128)
+  }
 }
