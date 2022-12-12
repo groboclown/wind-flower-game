@@ -2,7 +2,8 @@
 import { Scene3D, ExtendedObject3D } from '@enable3d/phaser-extension'
 import { THREE } from 'enable3d'
 import { createGrid, GridBoard3D } from './grid'
-import { Controls, createControls } from './input'
+import { createCameraInputControls } from './input'
+import { CameraInput } from './input/camera-input'
 import {
   store,
   // Tile,
@@ -13,44 +14,9 @@ import {
 import { createAlternatingBoard, createBoardRect } from './test-data'
 
 
-interface MouseMovedEvent {
-  // manager
-  // id
-  // camera
-  button: number
-  buttons: number,
-  position: {x: number, y: number}
-  prevPosition: {x: number, y: number}
-  midPoint: {x: number, y: number}
-  velocity: {x: number, y: number}
-  angle: number
-  distance: number
-  smoothFactor: number
-  motionFactor: number
-  worldX: number
-  worldY: number
-  moveTime: number
-  downX: number
-  downY: number
-  downTime: number
-  upX: number
-  upY: number
-  upTime: number
-  primaryDown: number
-  isDown(): boolean
-  wasTouch(): boolean
-  wasCanceled(): boolean
-  movementX: number
-  movementY: number
-  deltaX: number
-  deltaY: number
-  deltaZ: number
-  //,identifier,pointerId,active,locked,,event
-}
-
 export default class GameBoardScene extends Scene3D {
   private grid: GridBoard3D | null
-	private controls: Controls | null
+	private controls: CameraInput | null
 
   private tmpFocusBox: ExtendedObject3D | null
   private tmpLastMouse: THREE.Vector2
@@ -77,34 +43,15 @@ export default class GameBoardScene extends Scene3D {
       // Places:
       // a hemisphere light
       // an ambient light
-      // a directional light, positioned at (100, 200, 50)
-      // 'light',
 
       // a camera in position (0, 6, 12)
       'camera',
-
-      // make the camera look at the scene's initial position
-      //'lookAtCenter',
-
-      // include a Mesh and a set of shaders to simulate the effect of an azure sky
-      // 'sky',
-
-      // include a set of controllers to allow the camera to orbit around a target.
-      // 'orbitControls',
-
-      // create a ground platform in the scene.
-      //   The ground platform measures 21x21x1, and it is positioned 0.5 under the origin.
-      //   By default, the ground platform is not texturized.
-      // 'ground',
-
-      // texturize the ground platform with a grid composed of white 1x1 squares with a black border,
-      //   only if the ground is present.
-      // 'grid',
     )
 		// Input Controls
-    this.controls = createControls(this)
-    this.controls.registerOnUpdateListener((controls: Controls) => self.onControlsUpdated(controls))
-    this.input.on('pointermove', (event: MouseMovedEvent) => self.onPointerMoved(event))
+    this.controls = createCameraInputControls(this)
+    this.controls.setPolarAngleBounds(0, Math.PI / 3)
+    this.controls.setZoomBounds(3, 20)
+    this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => self.onPointerMoved(pointer))
 
 		// this.third.camera.position.set(-20, 6, 0)
 		// this.third.camera.lookAt(this.third.scene.position)
@@ -198,11 +145,15 @@ export default class GameBoardScene extends Scene3D {
 
   update() {
 		// console.debug('Running update')
-    this.controls?.update()
+    this.onControlsUpdated()
+    this.controls?.onUpdate()
+    this.events.emit('addScore')
 	}
 
-  private onControlsUpdated(controls: Controls) {
-    this.tmpFocusBox?.position.copy(controls.getTarget())
+  private onControlsUpdated() {
+    if (this.controls && this.tmpFocusBox) {
+      this.tmpFocusBox.position.copy(this.controls.getTarget())
+    }
     let drawLine = false
     if (this.grid && this.tmpHightlightLine) {
       const raycaster = new THREE.Raycaster()
@@ -266,7 +217,7 @@ export default class GameBoardScene extends Scene3D {
     }
   }
 
-  private onPointerMoved(pointer: MouseMovedEvent) {
+  private onPointerMoved(pointer: Phaser.Input.Pointer) {
     // console.log(`pointer moved! ${Object.keys(pointer)}`)
     // Calculate pointer position in normalized device coordinates
 	  //   (-1 to +1) for both components
@@ -282,7 +233,7 @@ export default class GameBoardScene extends Scene3D {
 
     if (this.controls) {
       // console.debug('Running controls update')
-      this.onControlsUpdated(this.controls)
+      this.onControlsUpdated()
     }
   }
 
