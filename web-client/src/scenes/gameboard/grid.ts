@@ -8,14 +8,17 @@ export interface GridBoard3D {
   readonly geometry: THREE.BufferGeometry
   readonly mesh: ExtendedMesh
 
-  // Lookup faces by the token index.
-  //   Empty tokens have a 'null' value
-  // The 'face' here is the position in the geometry for the
-  // first point on the triangle.
-  readonly tokenIndexToFaceIndex: (number[] | null)[]
+  // Positions of each hexagon token's verticies.
+  // Each token has 6 positions, and each
+  // position is 3 numbers.  Each triangle on the
+  // hexagon donates 1 point to the position list.
+  readonly tokenPositions: THREE.BufferAttribute
 
-  // Lookup tokens by the face index.
-  readonly positionIndexToTokenIndex: number[]
+  // Vertex index -> token position index
+  //   For each vertex in the geometry, its index / 9 is mapped to
+  //   the start index of the token hexagon in the
+  //   tokenPositions above.
+  readonly vertexToTokenIndex: number[]
 }
 
 
@@ -241,13 +244,14 @@ export function createGrid(
   const tokenHeight = (segmentSize.height / 2) | 0
   const triangleCount = segmentSize.width * segmentSize.height
 
-  const tokenIndexToFaceIndex: (number[] | null)[] = new Array<number[] | null>(tokenWidth * tokenHeight)
-  const positionIndexToTokenIndex: number[] = new Array<number>(triangleCount)
+  // 6 points per hexagon.
+  const tokenPositions = new Float32Array(tokenWidth * tokenHeight * 6 * 3)
+  const vertexToTokenIndex = new Array<number>(triangleCount * 3)
 
   const geometry = new THREE.BufferGeometry()
-  const positions = new Float32Array( triangleCount * 3 * 3 )
-	const normals = new Float32Array( triangleCount * 3 * 3 )
-	const colors = new Float32Array( triangleCount * 3 * 3 )
+  const positions = new Float32Array(triangleCount * 3 * 3)
+	const normals = new Float32Array(triangleCount * 3 * 3)
+	const colors = new Float32Array(triangleCount * 3 * 3)
   const color = new THREE.Color()
 
   const pA = new THREE.Vector3()
@@ -347,23 +351,6 @@ export function createGrid(
       const by = all_y[1] * HEIGHT_SCALE
       const cy = all_y[2] * HEIGHT_SCALE
 
-      // -------------------------------------
-      // Hex Token Lookup Calculation
-      const tokenIndex = ((column / 3) | 0) + (((row / 2) | 0) * tokenWidth)
-      positionIndexToTokenIndex[vIdx] = tokenIndex
-      positionIndexToTokenIndex[vIdx + 3] = tokenIndex
-      positionIndexToTokenIndex[vIdx + 6] = tokenIndex
-      if (!tokenIndexToFaceIndex[tokenIndex]) {
-        tokenIndexToFaceIndex[tokenIndex] = [0, 0, 0, 0, 0, 0]
-      }
-      // We must map this hex location to a vertex on the token.
-      // This is a multiple mapping, from finding the corresponding position for this
-      //   triangle's set of points, to finding the order for this hex index in the face index list.
-
-      // tell TypeScript that we know it can't be null/undefined at this point.
-      (tokenIndexToFaceIndex[tokenIndex] as number[])[TOKEN_POINT_ORDER_INDEX[hexIndex]] = vIdx + TOKEN_POINT_INDEX[hexIndex]
-      console.debug(`${vIdx} -> ${tokenIndex}`)
-
       // -------------------------------
       // Update the mesh values
 
@@ -428,6 +415,26 @@ export function createGrid(
       colors[vIdx + 7] = color.g
       colors[vIdx + 8] = color.b
 
+      // -------------------------------------
+      // Hex Token Lookup Calculation
+      /*
+
+      // The start index for the token hexagon in tokenPositions
+      const tokenPositionStartIndex = (((column / 3) | 0) + (((row / 2) | 0) * tokenWidth)) * 6 * 3
+      vertexToTokenIndex[vIdx / 9] = tokenPositionStartIndex
+
+      // This specific tile's donated point for the hexagon
+      const triaglePointIndex = vIdx + TOKEN_POINT_INDEX[hexIndex]
+      // The tile's point in the hexagon position list
+      const tokenPointIndex = tokenPositionStartIndex + TOKEN_POINT_ORDER_INDEX[hexIndex] * 3
+
+      tokenPositions[tokenPointIndex] = positions[triaglePointIndex]
+      tokenPositions[tokenPointIndex + 1] = positions[triaglePointIndex + 1]
+      tokenPositions[tokenPointIndex + 2] = positions[triaglePointIndex + 2]
+      */
+
+      // -------------------------------------
+      // End of loop number update
       vIdx += 3 * 3
     }
 
@@ -440,16 +447,6 @@ export function createGrid(
       x = startX
     }
   }
-
-  // Debug logging.
-  // const rowlen = segmentSize.width * 3 * 3
-  // console.log(`Hex 0 (0, 0): (${positions[ 0]}, ${positions[ 1]}, ${positions[ 2]}) (${positions[ 3]}, ${positions[ 4]}, ${positions[ 5]}) (${positions[ 6]}, ${positions[ 7]}, ${positions[ 8]})`)
-  // console.log(`Hex 0 (1, 0): (${positions[ 9]}, ${positions[10]}, ${positions[11]}) (${positions[12]}, ${positions[13]}, ${positions[14]}) (${positions[15]}, ${positions[16]}, ${positions[17]})`)
-  // console.log(`Hex 0 (2, 0): (${positions[18]}, ${positions[19]}, ${positions[20]}) (${positions[21]}, ${positions[22]}, ${positions[23]}) (${positions[24]}, ${positions[25]}, ${positions[26]})`)
-  // console.log(`Hex 0 (0, 1): (${positions[ 0+rowlen]}, ${positions[ 1+rowlen]}, ${positions[ 2+rowlen]}) (${positions[ 3+rowlen]}, ${positions[ 4+rowlen]}, ${positions[ 5+rowlen]}) (${positions[ 6+rowlen]}, ${positions[ 7+rowlen]}, ${positions[ 8+rowlen]})`)
-  // console.log(`Hex 0 (1, 1): (${positions[ 9+rowlen]}, ${positions[10+rowlen]}, ${positions[11+rowlen]}) (${positions[12+rowlen]}, ${positions[13+rowlen]}, ${positions[14+rowlen]}) (${positions[15+rowlen]}, ${positions[16+rowlen]}, ${positions[17+rowlen]})`)
-  // console.log(`Hex 0 (2, 1): (${positions[18+rowlen]}, ${positions[19+rowlen]}, ${positions[20+rowlen]}) (${positions[21+rowlen]}, ${positions[22+rowlen]}, ${positions[23+rowlen]}) (${positions[24+rowlen]}, ${positions[25+rowlen]}, ${positions[26+rowlen]})`)
-  // console.log(`Last tile: (${positions[positions.length-3]}, ${positions[positions.length-2]}, ${positions[positions.length-1]})`)
 
   // Doesn't seem like the array needs to be trimmed to the vIdx size.
   // However, there may be subtle issues we need to deal with if that's not the case.
@@ -474,8 +471,8 @@ export function createGrid(
     object,
     geometry,
     mesh,
-    positionIndexToTokenIndex,
-    tokenIndexToFaceIndex,
+    vertexToTokenIndex,
+    tokenPositions: new THREE.BufferAttribute(tokenPositions.slice(0, vIdx / 9), 3),
   }
 }
 

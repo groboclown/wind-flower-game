@@ -85,19 +85,7 @@ export default class GameBoardScene extends Scene3D {
       depth: .2,
     })
 
-    /*
-    // adds a box
-    this.third.add.box({ x: 1, y: 2 })
-
-    // adds a box with physics
-    this.third.physics.add.box({ x: -1, y: 2 })
-
-    */
-
     this.updateHexGrid()
-
-    // throws some random object on the scene
-		// this.third.haveSomeFun()
 
     // Start listening for changes
     store.subscribe(() => this.stateUpdated())
@@ -119,10 +107,6 @@ export default class GameBoardScene extends Scene3D {
       console.log(`Segment ${i} sized ${boardSegments[i].tiles.length}`)
     }
 		this.grid = createGrid(
-      // state.gameBoard.segments,
-      // state.gameBoard.segmentSize,
-      // state.gameBoard.size,
-
       boardSegments,
       boardSize,
       boardRect,
@@ -135,7 +119,7 @@ export default class GameBoardScene extends Scene3D {
     // This is a line around the hexagon, so 7 points on the line to wrap around the whole thing.
     // Change to 4 for triangles.
     const lineGeometry = new THREE.BufferGeometry()
-    lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(4 * 3), 3))
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(7 * 3), 3))
     const material = new THREE.LineBasicMaterial({color: 0xffffff, transparent: true})
     this.tmpHightlightLine = new THREE.Line(lineGeometry, material)
     const lineObj = new ExtendedObject3D()
@@ -145,7 +129,7 @@ export default class GameBoardScene extends Scene3D {
 
   update() {
 		// console.debug('Running update')
-    this.onControlsUpdated()
+    // this.onControlsUpdated()
     this.controls?.onUpdate()
     this.events.emit('addScore')
 	}
@@ -166,52 +150,28 @@ export default class GameBoardScene extends Scene3D {
         const face = intersect.face
 
         if (face) {
-          const tokenIndex = this.grid.positionIndexToTokenIndex[face.a]
-          const positionIndicies = this.grid.tokenIndexToFaceIndex[tokenIndex]
-          if (positionIndicies !== null) {
-            console.debug(`Highlight face ${face} -> token ${tokenIndex} : ${JSON.stringify(positionIndicies)}`)
-            const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
-            const meshPosition = this.grid.geometry.attributes.position as THREE.BufferAttribute
+          /*
+          const tokenIndex = this.grid.vertexToTokenIndex[(face.a / 9) | 0]
+          console.debug(`Highlight face ${face} -> token ${tokenIndex}`)
+          const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
 
-            // Draw a triangle
-            linePosition.copyAt(0, meshPosition, face.a)
-            linePosition.copyAt(1, meshPosition, face.b)
-            linePosition.copyAt(2, meshPosition, face.c)
-            linePosition.copyAt(3, meshPosition, face.a)
+          // Draw a triangle
+          linePosition.copyAt(0, this.grid.tokenPositions, tokenIndex)
+          linePosition.copyAt(1, this.grid.tokenPositions, tokenIndex + 3)
+          linePosition.copyAt(2, this.grid.tokenPositions, tokenIndex + 6)
+          linePosition.copyAt(3, this.grid.tokenPositions, tokenIndex + 9)
+          linePosition.copyAt(4, this.grid.tokenPositions, tokenIndex + 12)
+          linePosition.copyAt(5, this.grid.tokenPositions, tokenIndex + 15)
+          linePosition.copyAt(6, this.grid.tokenPositions, tokenIndex)
 
-            // Draw a hexagon
-            // The face indicies are already arranged in the draw order.
-            //for (let i = 0; i <= positionIndicies.length; i++) {
-            //  const j = i % positionIndicies.length
-            //  // i is the linePosition destination, j is the source.
-            //  // This repeats the first point, so make sure j wraps around.
-            //  linePosition.copyAt(i, meshPosition, positionIndicies[j])
-            //}
-
-            this.grid.object.updateMatrix()
-            this.tmpHightlightLine.geometry.applyMatrix4( this.grid.object.matrix )
-            drawLine = true
-
-            // console.debug(`Highlight face ${intersect.faceIndex}: points ${face.a}/${face.b}/${face.c}`)
-        } else {
-            console.debug(`No face index ${face} / token index ${tokenIndex}`)
-          }
-
-
-
-          /* draw the token
-          if (positionIndicies) {
-            const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
-            const meshPosition = this.grid.geometry.attributes.position as THREE.BufferAttribute
-
-
-            this.grid.object.updateMatrix()
-
-            this.tmpHightlightLine.geometry.applyMatrix4( this.grid.object.matrix )
-            drawLine = true
-          }
+          this.grid.object.updateMatrix()
+          this.tmpHightlightLine.geometry.applyMatrix4( this.grid.object.matrix )
+          drawLine = true
           */
+        } else {
+          console.debug(`No face index ${face}`)
         }
+
       }
       this.tmpHightlightLine.visible = drawLine
     }
