@@ -8,17 +8,13 @@ export interface GridBoard3D {
   readonly geometry: THREE.BufferGeometry
   readonly mesh: ExtendedMesh
 
-  // Positions of each hexagon token's verticies.
-  // Each token has 6 positions, and each
-  // position is 3 numbers.  Each triangle on the
-  // hexagon donates 1 point to the position list.
-  readonly tokenPositions: THREE.BufferAttribute
+  // A mapping of the token ID to the hexagon points (6 * 3 values).
+  readonly tokenIdHexagonShape: {[key: number]: Float32Array}
 
   // Vertex index -> token position index
-  //   For each vertex in the geometry, its index / 9 is mapped to
-  //   the start index of the token hexagon in the
-  //   tokenPositions above.
-  readonly vertexToTokenIndex: number[]
+  //   For each vertex in the geometry, its index is mapped to
+  //   the token ID of the original grid.
+  readonly vertexToTokenId: {[key: number]: number}
 }
 
 
@@ -240,13 +236,12 @@ export function createGrid(
   segmentSize: BoardSize,
   boardDim: BoardRect,
 ): GridBoard3D {
-  const tokenWidth = (segmentSize.width / 3) | 0
-  const tokenHeight = (segmentSize.height / 2) | 0
+  // const tokenWidth = (segmentSize.width / 3) | 0
+  // const tokenHeight = (segmentSize.height / 2) | 0
   const triangleCount = segmentSize.width * segmentSize.height
 
-  // 6 points per hexagon.
-  const tokenPositions = new Float32Array(tokenWidth * tokenHeight * 6 * 3)
-  const vertexToTokenIndex = new Array<number>(triangleCount * 3)
+  const tokenIdHexagonShape: {[key: number]: Float32Array} = {}
+  const vertexToTokenId: {[key: number]: number} = {}
 
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(triangleCount * 3 * 3)
@@ -278,6 +273,7 @@ export function createGrid(
   let x = startX
   let z = (primary.position.y * BASE_LENGTH) + ((boardDim.maxY + boardDim.minY) / 2)
   let vIdx = 0
+  // let tIdx = 0
   for (let tileI = 0; tileI < primary.tiles.length; tileI++) {
     // Don't add the empty tiles.  But don't continue right
     //   away, because we need to run the loop variable increase
@@ -417,24 +413,34 @@ export function createGrid(
 
       // -------------------------------------
       // Hex Token Lookup Calculation
-      /*
 
-      // The start index for the token hexagon in tokenPositions
-      const tokenPositionStartIndex = (((column / 3) | 0) + (((row / 2) | 0) * tokenWidth)) * 6 * 3
-      vertexToTokenIndex[vIdx / 9] = tokenPositionStartIndex
-
-      // This specific tile's donated point for the hexagon
-      const triaglePointIndex = vIdx + TOKEN_POINT_INDEX[hexIndex]
-      // The tile's point in the hexagon position list
-      const tokenPointIndex = tokenPositionStartIndex + TOKEN_POINT_ORDER_INDEX[hexIndex] * 3
-
-      tokenPositions[tokenPointIndex] = positions[triaglePointIndex]
-      tokenPositions[tokenPointIndex + 1] = positions[triaglePointIndex + 1]
-      tokenPositions[tokenPointIndex + 2] = positions[triaglePointIndex + 2]
-      */
+      const tokenId = primary.tiles[tileI].tokenId
+      if (tokenId !== null) {
+        // Convert the vertex x/y/z index into a vertex number.
+        // This is what the geometry face vertex index references.
+        const vertexIndex = (vIdx / 3) | 0
+        for (let i = 0; i < 3; i++) {
+          vertexToTokenId[vertexIndex + i] = tokenId
+        }
+        let hexPoints = tokenIdHexagonShape[tokenId]
+        if (hexPoints === undefined) {
+          hexPoints = new Float32Array(6 * 3)
+          tokenIdHexagonShape[tokenId] = hexPoints
+        }
+        // This specific tile's donated point for the hexagon
+        const triaglePointIndex = vIdx + TOKEN_POINT_INDEX[hexIndex]
+        // The tile's point in the hexagon position list
+        const tokenPointIndex = TOKEN_POINT_ORDER_INDEX[hexIndex] * 3
+        hexPoints[tokenPointIndex + 0] = positions[triaglePointIndex + 0]
+        hexPoints[tokenPointIndex + 1] = positions[triaglePointIndex + 1]
+        hexPoints[tokenPointIndex + 2] = positions[triaglePointIndex + 2]
+      } else {
+        console.log(`No tokenId for ${tileI} <- vertex ${vIdx}`)
+      }
 
       // -------------------------------------
       // End of loop number update
+      // tIdx++
       vIdx += 3 * 3
     }
 
@@ -471,8 +477,8 @@ export function createGrid(
     object,
     geometry,
     mesh,
-    vertexToTokenIndex,
-    tokenPositions: new THREE.BufferAttribute(tokenPositions.slice(0, vIdx / 9), 3),
+    tokenIdHexagonShape,
+    vertexToTokenId,
   }
 }
 

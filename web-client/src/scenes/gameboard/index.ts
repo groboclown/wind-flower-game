@@ -21,6 +21,7 @@ export default class GameBoardScene extends Scene3D {
   private tmpFocusBox: ExtendedObject3D | null
   private tmpLastMouse: THREE.Vector2
   private tmpHightlightLine: THREE.Line | null
+  private tmpMouseUpdated: boolean
 
   constructor() {
     super({ key: 'GameBoardScene' })
@@ -29,6 +30,7 @@ export default class GameBoardScene extends Scene3D {
     this.tmpFocusBox = null
     this.tmpLastMouse = new THREE.Vector2()
     this.tmpHightlightLine = null
+    this.tmpMouseUpdated = false
   }
 
   init() {
@@ -129,7 +131,7 @@ export default class GameBoardScene extends Scene3D {
 
   update() {
 		// console.debug('Running update')
-    // this.onControlsUpdated()
+    this.onControlsUpdated()
     this.controls?.onUpdate()
     this.events.emit('addScore')
 	}
@@ -139,7 +141,8 @@ export default class GameBoardScene extends Scene3D {
       this.tmpFocusBox.position.copy(this.controls.getTarget())
     }
     let drawLine = false
-    if (this.grid && this.tmpHightlightLine) {
+    if (this.grid && this.tmpHightlightLine && this.tmpMouseUpdated) {
+      this.tmpMouseUpdated = false
       const raycaster = new THREE.Raycaster()
       // update the picking ray with the camera and pointer position
       raycaster.setFromCamera(this.tmpLastMouse, this.third.camera)
@@ -148,30 +151,32 @@ export default class GameBoardScene extends Scene3D {
         const intersect = intersects[0]
         //const faceIndex = intersect.faceIndex
         const face = intersect.face
-
         if (face) {
-          /*
-          const tokenIndex = this.grid.vertexToTokenIndex[(face.a / 9) | 0]
-          console.debug(`Highlight face ${face} -> token ${tokenIndex}`)
-          const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
+          const tokenId = this.grid.vertexToTokenId[face.a]
+          const hexPositions = this.grid.tokenIdHexagonShape[tokenId]
+          if (hexPositions !== undefined) {
+            console.debug(`Highlight face ${face.a} -> token ${tokenId}`)
+            const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
 
-          // Draw a triangle
-          linePosition.copyAt(0, this.grid.tokenPositions, tokenIndex)
-          linePosition.copyAt(1, this.grid.tokenPositions, tokenIndex + 3)
-          linePosition.copyAt(2, this.grid.tokenPositions, tokenIndex + 6)
-          linePosition.copyAt(3, this.grid.tokenPositions, tokenIndex + 9)
-          linePosition.copyAt(4, this.grid.tokenPositions, tokenIndex + 12)
-          linePosition.copyAt(5, this.grid.tokenPositions, tokenIndex + 15)
-          linePosition.copyAt(6, this.grid.tokenPositions, tokenIndex)
+            // Draw a hexagon.  7 points, meaning the first -> last.
+            linePosition.setXYZ(6, hexPositions[ 0], hexPositions[ 1], hexPositions[ 2])
+            linePosition.setXYZ(0, hexPositions[ 0], hexPositions[ 1], hexPositions[ 2])
+            // console.debug(` -> ${tokenIndex + 0} : ${this.grid.tokenPositions.getX(tokenIndex + 0)}, ${this.grid.tokenPositions.getY(tokenIndex + 0)}`)
+            linePosition.setXYZ(1, hexPositions[ 3], hexPositions[ 4], hexPositions[ 5])
+            linePosition.setXYZ(2, hexPositions[ 6], hexPositions[ 7], hexPositions[ 8])
+            linePosition.setXYZ(3, hexPositions[ 9], hexPositions[10], hexPositions[11])
+            linePosition.setXYZ(4, hexPositions[12], hexPositions[13], hexPositions[14])
+            linePosition.setXYZ(5, hexPositions[15], hexPositions[16], hexPositions[17])
 
-          this.grid.object.updateMatrix()
-          this.tmpHightlightLine.geometry.applyMatrix4( this.grid.object.matrix )
-          drawLine = true
-          */
+            this.grid.object.updateMatrix()
+            this.tmpHightlightLine.geometry.applyMatrix4(this.grid.object.matrix)
+            drawLine = true
+          } else {
+            console.debug(`No hex position for face ${face.a} -> token ${tokenId}`)
+          }
         } else {
           console.debug(`No face index ${face}`)
         }
-
       }
       this.tmpHightlightLine.visible = drawLine
     }
@@ -182,14 +187,19 @@ export default class GameBoardScene extends Scene3D {
     // Calculate pointer position in normalized device coordinates
 	  //   (-1 to +1) for both components
 
-    const mouseWidth = this.game.canvas.width
-    const mouseHeight = this.game.canvas.height
-    this.tmpLastMouse?.set(
-      //(pointer.position.x / window.innerWidth) * 2 - 1,
-      (pointer.position.x / mouseWidth) * 2 - 1,
-      //(pointer.position.y / window.innerHeight) * 2 + 1,
-      1 - ((pointer.position.y / mouseHeight) * 2),
-    )
+    if (this.tmpLastMouse) {
+      const mouseWidth = this.game.canvas.width
+      const mouseHeight = this.game.canvas.height
+      const mouseX = (pointer.position.x / mouseWidth) * 2 - 1
+      const mouseY = 1 - ((pointer.position.y / mouseHeight) * 2)
+      if (mouseX !== this.tmpLastMouse.x || mouseY !== this.tmpLastMouse.y) {
+        this.tmpMouseUpdated = true
+        this.tmpLastMouse?.set(
+          mouseX,
+          mouseY,
+        )
+      }
+    }
 
     if (this.controls) {
       // console.debug('Running controls update')

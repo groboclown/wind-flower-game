@@ -34,6 +34,11 @@ export interface TileParameterValue {
 // A single triangle on the board
 export interface Tile {
   category: string | null
+
+  // Identifier for the token number for this tile.
+  // Unique across the game board, not just a segment.
+  tokenId: number | null
+
   // Temporary
   rgb: number[]
 
@@ -127,6 +132,7 @@ export const gameBoardReducer = createReducer(
                 category: deltaTile.category || 'unset',
                 height: deltaTile.z || 0,
                 rgb: [0, 0, 0],
+                tokenId: deltaTile.tokenId || null,
                 parameters: [],
               })
             })
