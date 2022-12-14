@@ -20,14 +20,14 @@ export const loadedClientAccount = createAction(
 )
 
 
-export interface Server {
+export interface ServerInfo {
   serverName: string
   publicKey: string
 }
 
 
 export const loadedServer = createAction(
-  'Server/loaded', function prepare(info: Server) {
+  'Server/loaded', function prepare(info: ServerInfo) {
     return { payload: info }
   },
 )

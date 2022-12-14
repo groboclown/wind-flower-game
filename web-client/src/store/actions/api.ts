@@ -50,6 +50,7 @@ export interface ServerTurnCompleted {
       y: number
       z?: number
       category?: string
+      tokenId?: number
       parameters: {
         parameterIndex: number
         quantity: number

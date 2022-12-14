@@ -3,7 +3,12 @@
 
 import { CameraControl } from './camera-control'
 import Phaser from 'phaser'
-import { Vector2 } from 'three'
+import { Vector2, Vector3 } from 'three'
+import {
+  CAMERA_POINTER_MOVED,
+  CAMERA_POINTER_SELECTION,
+  CAMERA_SELECTION_MOVED,
+} from './events'
 
 
 const STATE = {
@@ -14,11 +19,14 @@ const STATE = {
   DOLLY_PAN: 3,
   DOLLY_ROTATE: 4,
 }
-const CAMERA_ACTIONS = {
-  MOVE_UP: 0,
-  MOVE_DOWN: 1,
+export const CAMERA_ACTIONS = {
+  // "Move" are selection actions, not camera actions, but they're relative to the
+  // camera direction.
+  MOVE_FORWARDS: 0,
+  MOVE_BACKWARDS: 1,
   MOVE_LEFT: 2,
   MOVE_RIGHT: 3,
+
   ZOOM_IN: 4,
   ZOOM_OUT: 5,
   PAN_UP: 6,
@@ -40,33 +48,46 @@ interface PointerIndex {
   position: Vector2,
 }
 
+const REVERSE_VECTOR = new Vector3(-1, -1, -1)
+const VERTICAL_AXIS = new Vector3(0, 1, 0)
 
+
+/**
+ * Controls the camera by capturing the Phaser events and translating those
+ * to camera actions.
+ *
+ * Also, handles mapping input controls to rough grid actions by emitting these
+ * events on the input event emitter.  See the events file for the details.
+ */
 export class CameraInput {
   private controller: CameraControl
   private state: integer
   private keyMap: {[key: string]: integer}
   private mouseButtonMap: {[key: integer]: integer}
   private touchCountMap: {[key: integer]: integer}
-  private dom: HTMLElement | null
   private activePointers: Array<PointerIndex>
   private keyboardDown: {
     left: boolean, right :boolean, up: boolean, down: boolean,
     clockwise: boolean, counterClockwise: boolean, rotUp: boolean, rotDown: boolean,
     in: boolean, out: boolean,
   }
+  private dom: HTMLCanvasElement | null
+  private eventDispatch: Phaser.Events.EventEmitter | null
+  private dragActive: boolean
 
   constructor(controller: CameraControl) {
     this.controller = controller
     this.state = STATE.NONE
+    this.dragActive = false
 
     this.keyMap = {
       'ArrowLeft': CAMERA_ACTIONS.ROTATE_COUNTER_CLOCKWISE,
       'ArrowRight': CAMERA_ACTIONS.ROTATE_CLOCKWISE,
       'ArrowUp': CAMERA_ACTIONS.ZOOM_IN,
       'ArrowDown': CAMERA_ACTIONS.ZOOM_OUT,
-      'KeyW': CAMERA_ACTIONS.MOVE_UP,
+      'KeyW': CAMERA_ACTIONS.MOVE_FORWARDS,
       'KeyA': CAMERA_ACTIONS.MOVE_LEFT,
-      'KeyS': CAMERA_ACTIONS.MOVE_DOWN,
+      'KeyS': CAMERA_ACTIONS.MOVE_BACKWARDS,
       'KeyD': CAMERA_ACTIONS.MOVE_RIGHT,
       "KeyI": CAMERA_ACTIONS.ROTATE_UP,
       "KeyJ": CAMERA_ACTIONS.ROTATE_COUNTER_CLOCKWISE,
@@ -75,8 +96,8 @@ export class CameraInput {
     }
     this.mouseButtonMap = {
       0: CAMERA_ACTIONS.DRAG_ROTATE,
-      1: CAMERA_ACTIONS.DRAG_PAN,
-      2: CAMERA_ACTIONS.DRAG_DOLLY,
+      1: CAMERA_ACTIONS.DRAG_DOLLY,
+      2: CAMERA_ACTIONS.DRAG_PAN,
     }
     this.touchCountMap = {
       1: CAMERA_ACTIONS.DRAG_PAN,
@@ -86,6 +107,7 @@ export class CameraInput {
     }
 
     this.dom = null
+    this.eventDispatch = null
     this.activePointers = []
     //this.focusedTile = new Vector2(0, 0)
     this.keyboardDown = {
@@ -101,6 +123,7 @@ export class CameraInput {
   connectInput(input: Phaser.Input.InputPlugin) {
     const self = this
     self.dom = input.scene.game.canvas
+    self.eventDispatch = input
 
     // We need at least 3 touch inputs, if touch is supported.
     while (input.pointer3 === undefined) {
@@ -172,16 +195,16 @@ export class CameraInput {
     if (this.dom) {
       // Key held down that causes continuous camera action.
       if (this.keyboardDown.left) {
-        this.controller.eventPanLeft(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventPanLeft(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.right) {
-        this.controller.eventPanRight(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventPanRight(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.up) {
-        this.controller.eventPanUp(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventPanUp(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.down) {
-        this.controller.eventPanDown(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventPanDown(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.in) {
         // TODO is this right?
@@ -192,16 +215,16 @@ export class CameraInput {
         this.controller.eventZoom(1)
       }
       if (this.keyboardDown.clockwise) {
-        this.controller.eventRotateClockwise(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventRotateClockwise(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.counterClockwise) {
-        this.controller.eventRotateCounterClockwise(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventRotateCounterClockwise(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.rotUp) {
-        this.controller.eventRotateUp(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventRotateUp(this.dom.width, this.dom.height)
       }
       if (this.keyboardDown.rotDown) {
-        this.controller.eventRotateDown(this.dom.clientWidth, this.dom.clientHeight)
+        this.controller.eventRotateDown(this.dom.width, this.dom.height)
       }
     }
     this.controller.update()
@@ -213,11 +236,16 @@ export class CameraInput {
 
 
   private onPointerDown(pointer: Phaser.Input.Pointer) {
+    // Reset the drag action.
+    this.dragActive = false
+
+    // Record an active pointer.
     this.activePointers.push({
       identifier: pointer.identifier,
       position: new Vector2(pointer.x, pointer.y),
     })
-    const avgPos = this.avgPointerPosition()
+
+    const avgPos = this.avgDownPointerPosition()
     const action = pointer.wasTouch
       ? this.touchCountMap[this.activePointers.length]
       : this.mouseButtonMap[pointer.button]
@@ -249,42 +277,60 @@ export class CameraInput {
 
   private onPointerUp(pointer: Phaser.Input.Pointer) {
     this.state = STATE.NONE
-    if (pointer.wasTouch) {
-      this.activePointers = this.activePointers.filter((ptr) => pointer.identifier !== ptr.identifier)
+    if (! this.dragActive && this.eventDispatch && this.dom) {
+      // Possibly a selection event; a drag never occurred with this down action.
+      const x = (pointer.position.x / this.dom.width) * 2 - 1
+      const y = 1 - ((pointer.position.y / this.dom.height) * 2)
+      this.eventDispatch?.emit(CAMERA_POINTER_SELECTION, x, y)
     }
+    this.dragActive = false
+    this.activePointers = this.activePointers.filter((ptr) => pointer.identifier !== ptr.identifier)
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer) {
+    if (this.eventDispatch && this.dom) {
+      // Note: NOT the average position.  If there's no pointer
+      // down, then that will be meaningless.
+      const x = (pointer.position.x / this.dom.width) * 2 - 1
+      const y = 1 - ((pointer.position.y / this.dom.height) * 2)
+      this.eventDispatch.emit(CAMERA_POINTER_MOVED, x, y)
+    }
+
     this.activePointers.forEach((ptr) => {
       if (ptr.identifier === pointer.identifier) {
         ptr.position.set(pointer.x, pointer.y)
       }
     })
-    const avgPos = this.avgPointerPosition()
+    const avgPos = this.avgDownPointerPosition()
     switch (this.state) {
       case STATE.DOLLY:
+        this.dragActive = true
         this.controller.eventDollyMove(avgPos.x, avgPos.y)
         break
       case STATE.PAN:
+        this.dragActive = true
         if (this.dom !== null) {
-          this.controller.eventPanMove(avgPos.x, avgPos.y, this.dom.clientWidth, this.dom.clientHeight)
+          this.controller.eventPanMove(avgPos.x, avgPos.y, this.dom.width, this.dom.height)
         }
         break
       case STATE.ROTATE:
+        this.dragActive = true
         if (this.dom !== null) {
-          this.controller.eventRotateMove(avgPos.x, avgPos.y, this.dom.clientWidth, this.dom.clientHeight)
+          this.controller.eventRotateMove(avgPos.x, avgPos.y, this.dom.width, this.dom.height)
         }
         break
       case STATE.DOLLY_PAN:
+        this.dragActive = true
         this.controller.eventDollyMove(avgPos.x, avgPos.y)
         if (this.dom !== null) {
-          this.controller.eventPanMove(avgPos.x, avgPos.y, this.dom.clientWidth, this.dom.clientHeight)
+          this.controller.eventPanMove(avgPos.x, avgPos.y, this.dom.width, this.dom.height)
         }
         break
       case STATE.DOLLY_ROTATE:
+        this.dragActive = true
         this.controller.eventDollyMove(avgPos.x, avgPos.y)
         if (this.dom !== null) {
-          this.controller.eventRotateMove(avgPos.x, avgPos.y, this.dom.clientWidth, this.dom.clientHeight)
+          this.controller.eventRotateMove(avgPos.x, avgPos.y, this.dom.width, this.dom.height)
         }
         break
     }
@@ -305,17 +351,17 @@ export class CameraInput {
       // relative to the direction the camera is pointing.
       // Probably should call an event or something that will contain the
       // direction vector to enable proper highlighting.
-      case CAMERA_ACTIONS.MOVE_UP:
-        // TODO
+      case CAMERA_ACTIONS.MOVE_FORWARDS:
+        this.eventDispatch?.emit(CAMERA_SELECTION_MOVED, this.controller.cameraDirection())
         break
-      case CAMERA_ACTIONS.MOVE_DOWN:
-        // TODO
+      case CAMERA_ACTIONS.MOVE_BACKWARDS:
+        this.eventDispatch?.emit(CAMERA_SELECTION_MOVED, this.controller.cameraDirection().multiply(REVERSE_VECTOR))
         break
       case CAMERA_ACTIONS.MOVE_LEFT:
-        // TODO
+        this.eventDispatch?.emit(CAMERA_SELECTION_MOVED, this.controller.cameraDirection().applyAxisAngle(VERTICAL_AXIS, -Math.PI / 2))
         break
       case CAMERA_ACTIONS.MOVE_RIGHT:
-        // TODO
+        this.eventDispatch?.emit(CAMERA_SELECTION_MOVED, this.controller.cameraDirection().applyAxisAngle(VERTICAL_AXIS, Math.PI / 2))
         break
       case CAMERA_ACTIONS.ROTATE_CLOCKWISE:
         this.keyboardDown.clockwise = true
@@ -390,7 +436,7 @@ export class CameraInput {
   // ------------------------------------------------------------------------
   // Utility Functions
 
-  private avgPointerPosition(): Vector2 {
+  private avgDownPointerPosition(): Vector2 {
     let sum = new Vector2(0, 0)
     let len = this.activePointers.length
     if (len > 0) {

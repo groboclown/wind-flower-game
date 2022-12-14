@@ -52,6 +52,7 @@ export function createAlternatingTokenSegment(
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
       height: calculateHeight(i, tokenSize, 6),
+      tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
   return tokens
@@ -68,6 +69,7 @@ export function createAlternatingEmptyTokenSegment(
     tokens[i] = {
       ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
       height: calculateHeight(i, tokenSize, 6),
+      tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
   return tokens
@@ -174,6 +176,7 @@ const EMPTY_TILE: Tile = {
   category: null,
   rgb: [0.0, 0.0, 0.0],  // temporary
   height: -10,
+  tokenId: null,
   parameters: [],
 }
 
@@ -181,6 +184,7 @@ const RED_TILE: Tile = {
   category: 'red',
   rgb: [0.8, 0.2, 0.2],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -188,6 +192,7 @@ const GREEN_TILE: Tile = {
   category: 'green',
   rgb: [0.2, 0.8, 0.2],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -195,6 +200,7 @@ const BLUE_TILE: Tile = {
   category: 'blue',
   rgb: [0.2, 0.2, 0.8],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -202,6 +208,7 @@ const YELLOW_TILE: Tile = {
   category: 'yellow',
   rgb: [0.8, 0.8, 0.2],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -209,6 +216,7 @@ const CYAN_TILE: Tile = {
   category: 'cyan',
   rgb: [0.2, 0.8, 0.8],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -216,6 +224,7 @@ const MAGENTA_TILE: Tile = {
   category: 'magenta',
   rgb: [0.8, 0.2, 0.8],  // temporary
   height: 0,
+  tokenId: null,
   parameters: [],
 }
 
@@ -269,31 +278,36 @@ function hexTokensToSegment(
 
           tiles[tilePos + 0] = {
             category: token.category,
+            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
           // For debugging, the colors can change per triangle to
           //   ensure that they are positioned correctly on the screen.
           tiles[tilePos + 1] = {
             category: token.category,
-            // rgb: [Math.max(0, token.rgb[0] * 0.8), Math.max(token.rgb[1] * 0.8), Math.max(0, token.rgb[2] * 0.8)],
+            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + 2] = {
             category: token.category,
-            // rgb: [Math.max(0, token.rgb[0] * 0.6), Math.max(token.rgb[1] * 0.6), Math.max(0, token.rgb[2] * 0.6)],
+            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 0] = {
             category: token.category,
-            // rgb: [Math.min(1, token.rgb[0] * 1.2), Math.min(1, token.rgb[1] * 1.2), Math.min(1, token.rgb[2] * 1.2)],
+            // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 1] = {
@@ -301,13 +315,15 @@ function hexTokensToSegment(
             // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 2] = {
             category: token.category,
-            // rgb: [Math.min(1, token.rgb[0] * 1.4), Math.min(1, token.rgb[1] * 1.4), Math.min(1, token.rgb[2] * 1.4)],
+            // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
             rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
             height: token.height,
+            tokenId: token.tokenId,
             parameters: token.parameters,
           }
         }

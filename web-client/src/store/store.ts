@@ -3,12 +3,16 @@ import { configureStore } from '@reduxjs/toolkit'
 import {
   gameBoardReducer,
   clientPlayerReducer,
+  gameLobbyReducer,
+  gameplayInterfaceReducer,
 } from './state'
 
 export const store = configureStore({
   reducer: {
     gameBoard: gameBoardReducer,
     clientPlayer: clientPlayerReducer,
+    gameLobby: gameLobbyReducer,
+    gameplayInterface: gameplayInterfaceReducer,
   },
 })
 
