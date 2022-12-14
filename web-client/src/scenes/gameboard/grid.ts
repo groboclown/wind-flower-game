@@ -15,6 +15,9 @@ export interface GridBoard3D {
   //   For each vertex in the geometry, its index is mapped to
   //   the token ID of the original grid.
   readonly vertexToTokenId: {[key: number]: number}
+
+  // TokenID -> position/color/etc start index
+  readonly tokenIdToIndex: {[key: number]: number[]}
 }
 
 
@@ -242,6 +245,7 @@ export function createGrid(
 
   const tokenIdHexagonShape: {[key: number]: Float32Array} = {}
   const vertexToTokenId: {[key: number]: number} = {}
+  const tokenIdToIndex: {[key: number]: number[]} = {}
 
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(triangleCount * 3 * 3)
@@ -350,7 +354,7 @@ export function createGrid(
       // -------------------------------
       // Update the mesh values
 
-      positions[vIdx] = ax
+      positions[vIdx    ] = ax
       positions[vIdx + 1] = ay
       positions[vIdx + 2] = az
 
@@ -378,7 +382,7 @@ export function createGrid(
       const ny = cb.y
       const nz = cb.z
 
-      normals[vIdx] = nx
+      normals[vIdx    ] = nx
       normals[vIdx + 1] = ny
       normals[vIdx + 2] = nz
 
@@ -399,7 +403,7 @@ export function createGrid(
         color.setRGB(primary.tiles[tileI].rgb[0], primary.tiles[tileI].rgb[1], primary.tiles[tileI].rgb[2])
       }
 
-      colors[vIdx] = color.r
+      colors[vIdx    ] = color.r
       colors[vIdx + 1] = color.g
       colors[vIdx + 2] = color.b
 
@@ -416,6 +420,13 @@ export function createGrid(
 
       const tokenId = primary.tiles[tileI].tokenId
       if (tokenId !== null) {
+        let indexList = tokenIdToIndex[tokenId]
+        if (indexList === undefined) {
+          indexList = []
+          tokenIdToIndex[tokenId] = indexList
+        }
+        indexList.push(vIdx)
+
         // Convert the vertex x/y/z index into a vertex number.
         // This is what the geometry face vertex index references.
         const vertexIndex = (vIdx / 3) | 0
@@ -479,6 +490,7 @@ export function createGrid(
     mesh,
     tokenIdHexagonShape,
     vertexToTokenId,
+    tokenIdToIndex,
   }
 }
 

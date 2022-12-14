@@ -309,7 +309,13 @@ export class OrbitCameraControl implements CameraControl {
     return new Vector3().copy(this.target)
   }
 
-  setTargetBounds(min: THREE.Vector3, max: THREE.Vector3): void {
+  cameraDirection(): Vector3 {
+    const ret = new Vector3()
+    this.camera.getWorldDirection(ret)
+    return ret
+  }
+
+  setTargetBounds(min: Vector3, max: Vector3): void {
     this.targetMin.set(Math.min(min.x, max.x), Math.min(min.y, max.y), Math.min(min.z, max.z))
     this.targetMax.set(Math.max(min.x, max.x), Math.max(min.y, max.y), Math.max(min.z, max.z))
   }

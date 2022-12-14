@@ -6,6 +6,7 @@ export interface CameraControl {
   reset(): void
   lookAt(at: THREE.Vector3): void
   positionAt(at: THREE.Vector3): void
+  cameraDirection(): THREE.Vector3
   getTarget(): THREE.Vector3
   setTargetBounds(min: THREE.Vector3, max: THREE.Vector3): void
   setAzimuthAngleBounds(min: number, max: number): void

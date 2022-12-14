@@ -3,13 +3,22 @@ import { Scene3D, ExtendedObject3D } from '@enable3d/phaser-extension'
 import { THREE } from 'enable3d'
 import { createGrid, GridBoard3D } from './grid'
 import { createCameraInputControls } from './input'
-import { CameraInput } from './input/camera-input'
+import {
+  CameraInput,
+  CAMERA_POINTER_MOVED,
+  CAMERA_POINTER_SELECTION,
+  CAMERA_SELECTION_MOVED,
+} from './input'
+import { GAMEBOARD_SCENE_NAME } from '../names'
 import {
   store,
   // Tile,
   BoardSize,
   // BoardRect,
   // GameBoardSegment,
+  gameBoardTokenSelected,
+  gameBoardTokenDeSelected,
+  gameBoardTokenHoverOver,
 } from '../../store'
 import { createAlternatingBoard, createBoardRect } from './test-data'
 
@@ -19,18 +28,21 @@ export default class GameBoardScene extends Scene3D {
 	private controls: CameraInput | null
 
   private tmpFocusBox: ExtendedObject3D | null
-  private tmpLastMouse: THREE.Vector2
   private tmpHightlightLine: THREE.Line | null
-  private tmpMouseUpdated: boolean
+
+  private hoveredTokenId: number | null
+
+  private selectedTokenId: number | null
 
   constructor() {
-    super({ key: 'GameBoardScene' })
+    super({ key: GAMEBOARD_SCENE_NAME })
 		this.grid = null
 		this.controls = null
     this.tmpFocusBox = null
-    this.tmpLastMouse = new THREE.Vector2()
     this.tmpHightlightLine = null
-    this.tmpMouseUpdated = false
+
+    this.hoveredTokenId = null
+    this.selectedTokenId = null
   }
 
   init() {
@@ -53,7 +65,9 @@ export default class GameBoardScene extends Scene3D {
     this.controls = createCameraInputControls(this)
     this.controls.setPolarAngleBounds(0, Math.PI / 3)
     this.controls.setZoomBounds(3, 20)
-    this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer) => self.onPointerMoved(pointer))
+    this.input.on(CAMERA_POINTER_MOVED, (x: number, y: number) => self.onCameraPointerMoved(x, y))
+    this.input.on(CAMERA_POINTER_SELECTION, (x: number, y: number) => self.onCameraPointerSelected(x, y))
+    this.input.on(CAMERA_SELECTION_MOVED, (change: THREE.Vector3) => self.onCameraSelectionMoved(change))
 
 		// this.third.camera.position.set(-20, 6, 0)
 		// this.third.camera.lookAt(this.third.scene.position)
@@ -122,7 +136,7 @@ export default class GameBoardScene extends Scene3D {
     // Change to 4 for triangles.
     const lineGeometry = new THREE.BufferGeometry()
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(7 * 3), 3))
-    const material = new THREE.LineBasicMaterial({color: 0xffffff, transparent: true})
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, linewidth: 3 })
     this.tmpHightlightLine = new THREE.Line(lineGeometry, material)
     const lineObj = new ExtendedObject3D()
     lineObj.add(this.tmpHightlightLine)
@@ -140,22 +154,25 @@ export default class GameBoardScene extends Scene3D {
     if (this.controls && this.tmpFocusBox) {
       this.tmpFocusBox.position.copy(this.controls.getTarget())
     }
-    let drawLine = false
-    if (this.grid && this.tmpHightlightLine && this.tmpMouseUpdated) {
-      this.tmpMouseUpdated = false
-      const raycaster = new THREE.Raycaster()
-      // update the picking ray with the camera and pointer position
-      raycaster.setFromCamera(this.tmpLastMouse, this.third.camera)
-      const intersects = raycaster.intersectObject(this.grid.object)
-      if (intersects.length > 0) {
-        const intersect = intersects[0]
-        //const faceIndex = intersect.faceIndex
-        const face = intersect.face
-        if (face) {
-          const tokenId = this.grid.vertexToTokenId[face.a]
-          const hexPositions = this.grid.tokenIdHexagonShape[tokenId]
+  }
+
+  private onCameraPointerMoved(x: number, y: number) {
+    // console.log(`pointer moved! ${Object.keys(pointer)}`)
+    // Calculate pointer position in normalized device coordinates
+	  //   (-1 to +1) for both components
+
+    // console.log(`last mouse position set at (${x}, ${y})`)
+    if (this.grid && this.tmpHightlightLine) {
+      const nextHoveredTokenId = this.findIntersectedTokenId(x, y)
+
+      // console.log(`hovered token: ${this.currentlyHoveredTokenId} -> ${this.nextHoveredTokenId}`)
+      if (this.hoveredTokenId !== nextHoveredTokenId) {
+        console.log(`changing hovered token: ${this.hoveredTokenId} -> ${nextHoveredTokenId}`)
+
+        let drawLine = false
+        if (nextHoveredTokenId !== null) {
+          const hexPositions = this.grid.tokenIdHexagonShape[nextHoveredTokenId]
           if (hexPositions !== undefined) {
-            console.debug(`Highlight face ${face.a} -> token ${tokenId}`)
             const linePosition = this.tmpHightlightLine.geometry.attributes.position as THREE.BufferAttribute
 
             // Draw a hexagon.  7 points, meaning the first -> last.
@@ -171,33 +188,12 @@ export default class GameBoardScene extends Scene3D {
             this.grid.object.updateMatrix()
             this.tmpHightlightLine.geometry.applyMatrix4(this.grid.object.matrix)
             drawLine = true
-          } else {
-            console.debug(`No hex position for face ${face.a} -> token ${tokenId}`)
           }
-        } else {
-          console.debug(`No face index ${face}`)
         }
-      }
-      this.tmpHightlightLine.visible = drawLine
-    }
-  }
+        this.tmpHightlightLine.visible = drawLine
 
-  private onPointerMoved(pointer: Phaser.Input.Pointer) {
-    // console.log(`pointer moved! ${Object.keys(pointer)}`)
-    // Calculate pointer position in normalized device coordinates
-	  //   (-1 to +1) for both components
-
-    if (this.tmpLastMouse) {
-      const mouseWidth = this.game.canvas.width
-      const mouseHeight = this.game.canvas.height
-      const mouseX = (pointer.position.x / mouseWidth) * 2 - 1
-      const mouseY = 1 - ((pointer.position.y / mouseHeight) * 2)
-      if (mouseX !== this.tmpLastMouse.x || mouseY !== this.tmpLastMouse.y) {
-        this.tmpMouseUpdated = true
-        this.tmpLastMouse?.set(
-          mouseX,
-          mouseY,
-        )
+        this.hoveredTokenId = this.hoveredTokenId
+        store.dispatch(gameBoardTokenHoverOver({ tokenId: nextHoveredTokenId }))
       }
     }
 
@@ -205,6 +201,56 @@ export default class GameBoardScene extends Scene3D {
       // console.debug('Running controls update')
       this.onControlsUpdated()
     }
+  }
+
+  private onCameraPointerSelected(x: number, y: number) {
+    // console.log(`Clicked on ${x}, ${y}`)
+    if (this.grid) {
+      const nextSelected = this.findIntersectedTokenId(x, y)
+
+      // console.log(`selected token: ${this.currentlySelectedTokenId} -> ${this.nextSelectedTokenId}`)
+      if (this.selectedTokenId !== nextSelected) {
+        console.log(`changing selected token: ${this.selectedTokenId} -> ${nextSelected}`)
+
+        // TODO add a decal on the selected token to indicate it's highlighted.
+        // That's probably what the hover display will become, too.
+
+        this.selectedTokenId = nextSelected
+        if (this.selectedTokenId !== null) {
+          store.dispatch(gameBoardTokenSelected({ tokenId: this.selectedTokenId }))
+        } else {
+          store.dispatch(gameBoardTokenDeSelected({}))
+        }
+      }
+    }
+
+  }
+
+  private onCameraSelectionMoved(change: THREE.Vector3) {
+    console.log(`Move selection along ${change.x}, ${change.z}`)
+  }
+
+  private findIntersectedTokenId(x: number, y: number): number | null {
+    if (this.grid) {
+      const raycaster = new THREE.Raycaster()
+      // update the picking ray with the camera and pointer position
+      raycaster.setFromCamera({x, y}, this.third.camera)
+      const intersects = raycaster.intersectObject(this.grid.object)
+      if (intersects.length > 0) {
+        const intersect = intersects[0]
+        //const faceIndex = intersect.faceIndex
+        const face = intersect.face
+        if (face) {
+          const tokenId = this.grid.vertexToTokenId[face.a]
+          if (tokenId === undefined) {
+            return null
+          }
+          // console.debug(`(${x}, ${y}) intersected face ${face.a} -> token ${tokenId}`)
+          return tokenId
+        }
+      }
+    }
+    return null
   }
 
   stateUpdated() {

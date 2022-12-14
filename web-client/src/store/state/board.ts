@@ -69,8 +69,8 @@ export interface GameBoardState {
   segments: GameBoardSegment[]
 
   // arrays at each index contains all the segment indexes with coordinate X
-  segmentIndexX: Map<number, number[]>
-  segmentIndexY: Map<number, number[]>
+  segmentIndexX: {[key: number]: number[]}
+  segmentIndexY: {[key: number]: number[]}
 }
 
 
@@ -79,8 +79,8 @@ function initialGameBoardState(): GameBoardState {
     size: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     segmentSize: { width: 0, height: 0 },
     segments: [],
-    segmentIndexX: new Map<number, number[]>(),
-    segmentIndexY: new Map<number, number[]>(),
+    segmentIndexX: {},
+    segmentIndexY: {},
   }
 }
 
@@ -98,17 +98,17 @@ export const gameBoardReducer = createReducer(
       .addCase(updateServerTurn, (state, action) => {
         // Just update the game board for this action.
         action.payload.segmentChanges.forEach((deltaSeg) => {
-          let xSegs = state.segmentIndexX.get(deltaSeg.x)
-          let ySegs = state.segmentIndexY.get(deltaSeg.y)
+          let xSegs = state.segmentIndexX[deltaSeg.x]
+          let ySegs = state.segmentIndexY[deltaSeg.y]
           let isNew = false
           if (!xSegs) {
             xSegs = []
-            state.segmentIndexX.set(deltaSeg.x, xSegs)
+            state.segmentIndexX[deltaSeg.x] = xSegs
             isNew = true
           }
           if (!ySegs) {
             ySegs = []
-            state.segmentIndexY.set(deltaSeg.y, ySegs)
+            state.segmentIndexY[deltaSeg.y] = ySegs
             isNew = true
           }
           if (isNew) {
