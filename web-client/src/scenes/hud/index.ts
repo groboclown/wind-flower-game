@@ -10,7 +10,7 @@ export default class MainGameScene extends Phaser.Scene {
   selectedTokenId: number | null
 
   constructor() {
-    super({ key: 'HudScene', active: true })
+    super({ key: 'HudScene' })
 
     this.score = 0
     this.selectedTokenId = null

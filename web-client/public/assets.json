@@ -1,0 +1,14 @@
+{
+  "boot": [
+    {
+      "name": "mesh-texture",
+      "type": "texture",
+      "location": "./textures/mesh-texture/mesh-texture.png"
+    },
+    {
+      "name": "mesh-uv-map",
+      "type": "json",
+      "location": "./textures/mesh-texture/uv-map.json"
+    }
+  ]
+}
