@@ -174,7 +174,7 @@ function getTokenBoardSize(
 
 const EMPTY_TILE: Tile = {
   category: null,
-  rgb: [0.0, 0.0, 0.0],  // temporary
+  variation: 0,
   height: -10,
   tokenId: null,
   parameters: [],
@@ -182,7 +182,7 @@ const EMPTY_TILE: Tile = {
 
 const RED_TILE: Tile = {
   category: 'red',
-  rgb: [0.8, 0.2, 0.2],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
@@ -190,7 +190,7 @@ const RED_TILE: Tile = {
 
 const GREEN_TILE: Tile = {
   category: 'green',
-  rgb: [0.2, 0.8, 0.2],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
@@ -198,7 +198,7 @@ const GREEN_TILE: Tile = {
 
 const BLUE_TILE: Tile = {
   category: 'blue',
-  rgb: [0.2, 0.2, 0.8],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
@@ -206,7 +206,7 @@ const BLUE_TILE: Tile = {
 
 const YELLOW_TILE: Tile = {
   category: 'yellow',
-  rgb: [0.8, 0.8, 0.2],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
@@ -214,7 +214,7 @@ const YELLOW_TILE: Tile = {
 
 const CYAN_TILE: Tile = {
   category: 'cyan',
-  rgb: [0.2, 0.8, 0.8],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
@@ -222,14 +222,30 @@ const CYAN_TILE: Tile = {
 
 const MAGENTA_TILE: Tile = {
   category: 'magenta',
-  rgb: [0.8, 0.2, 0.8],  // temporary
+  variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
 }
 
-const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE]
-const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE]
+const MOUNTAIN_TILE: Tile = {
+  category: 'mountain',
+  variation: 0,
+  height: 0,
+  tokenId: null,
+  parameters: [],
+}
+
+const WATER_TILE: Tile = {
+  category: 'water',
+  variation: 0,
+  height: 0,
+  tokenId: null,
+  parameters: [],
+}
+
+const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE]
+const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE]
 
 
 // hexTokensToSegment Turns a NxM grid of hex tokens (column major) into a segment.
@@ -278,8 +294,7 @@ function hexTokensToSegment(
 
           tiles[tilePos + 0] = {
             category: token.category,
-            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
@@ -288,40 +303,35 @@ function hexTokensToSegment(
           //   ensure that they are positioned correctly on the screen.
           tiles[tilePos + 1] = {
             category: token.category,
-            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + 2] = {
             category: token.category,
-            // rgb: [Math.max(0, token.rgb[0] * 0.3), Math.max(token.rgb[1] * 0.3), Math.max(0, token.rgb[2] * 0.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 0] = {
             category: token.category,
-            // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 1] = {
             category: token.category,
-            // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
           }
           tiles[tilePos + size.width + 2] = {
             category: token.category,
-            // rgb: [Math.min(1, token.rgb[0] * 1.3), Math.min(1, token.rgb[1] * 1.3), Math.min(1, token.rgb[2] + 1.3)],
-            rgb: [token.rgb[0], token.rgb[1], token.rgb[2]],
+            variation: (Math.random() * 4) | 0,
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,

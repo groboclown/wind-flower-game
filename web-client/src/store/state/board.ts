@@ -39,8 +39,9 @@ export interface Tile {
   // Unique across the game board, not just a segment.
   tokenId: number | null
 
-  // Temporary
-  rgb: number[]
+  // Variation on the category texture (purely aesthetic).  This will
+  // be modulated with the count so it will never generate an error.
+  variation: number
 
   height: number
   parameters: TileParameterValue[]
@@ -71,6 +72,9 @@ export interface GameBoardState {
   // arrays at each index contains all the segment indexes with coordinate X
   segmentIndexX: {[key: number]: number[]}
   segmentIndexY: {[key: number]: number[]}
+
+  // token ID to the segment index, tile index list
+  tokenIdMap: {[key: number]: number[][]}
 }
 
 
@@ -81,10 +85,11 @@ function initialGameBoardState(): GameBoardState {
     segments: [],
     segmentIndexX: {},
     segmentIndexY: {},
+    tokenIdMap: {},
   }
 }
 
-
+// TODO the game board itself will probably be kept outside the state.
 export const gameBoardReducer = createReducer(
   initialGameBoardState(), (builder) => {
     builder
@@ -128,13 +133,22 @@ export const gameBoardReducer = createReducer(
                   vector: {x: deltaParam.x, y: deltaParam.y},
                 })
               })
+              const tileIndex = newSegment.tiles.length
               newSegment.tiles.push({
                 category: deltaTile.category || 'unset',
                 height: deltaTile.z || 0,
-                rgb: [0, 0, 0],
+                variation: 0,
                 tokenId: deltaTile.tokenId || null,
                 parameters: [],
               })
+              if (deltaTile.tokenId !== undefined) {
+                let tileMapping = state.tokenIdMap[deltaTile.tokenId]
+                if (tileMapping === undefined) {
+                  tileMapping = []
+                  state.tokenIdMap[deltaTile.tokenId] = tileMapping
+                }
+                tileMapping.push([newIndex, tileIndex])
+              }
             })
             // Only when a new segment is added to we adjust the board size.
             if (deltaSeg.x < state.size.minX) {
