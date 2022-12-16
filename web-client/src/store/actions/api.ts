@@ -43,8 +43,10 @@ export interface ServerTurnCompleted {
   //   the changed tiles are here.
   //   This includes the played token.
   segmentChanges: {
+    // The segment index
     x: number
     y: number
+
     tiles: {
       x: number
       y: number

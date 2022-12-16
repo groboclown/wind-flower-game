@@ -47,6 +47,17 @@ export interface Tile {
   parameters: TileParameterValue[]
 }
 
+
+// Default empty tile template.
+export const EMPTY_TILE: Tile = {
+  category: null,
+  variation: 0,
+  height: -10,
+  tokenId: null,
+  parameters: [],
+}
+
+
 // GameBoardSegment a rectangle of tiles on the game board
 // The game board contains collections of these.  They relate to
 //   the tiles stored on the server fetched in a single batch.
@@ -58,23 +69,22 @@ export interface GameBoardSegment {
   tiles: Tile[]
 }
 
+
+// Get the key for the segment, as it appears in the GameBoardState segments map.
+export function getGameBoardSegmentKey(segment: GameBoardSegment): string {
+  return `${segment.position.x},${segment.position.y}`
+}
+
+
 export interface GameBoardState {
   // The width and height can change as the board grows.
   size: {minX: number, minY: number, maxX: number, maxY: number}
   segmentSize: BoardSize
 
-  // Segments need a better data structure for optimal
-  // use.  Right now, this is just a linear list.  It
-  // contains a collection of sparse values unique across
-  // (x, y).
-  segments: GameBoardSegment[]
-
-  // arrays at each index contains all the segment indexes with coordinate X
-  segmentIndexX: {[key: number]: number[]}
-  segmentIndexY: {[key: number]: number[]}
-
-  // token ID to the segment index, tile index list
-  tokenIdMap: {[key: number]: number[][]}
+  // The whole game board is a map of '{x},{y}' values,
+  // where x & y are the position values of the game board segment.
+  // This is used elsewhere as the "index" for the segment.
+  segments: {[key: string]: GameBoardSegment}
 }
 
 
@@ -82,10 +92,7 @@ function initialGameBoardState(): GameBoardState {
   return {
     size: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     segmentSize: { width: 0, height: 0 },
-    segments: [],
-    segmentIndexX: {},
-    segmentIndexY: {},
-    tokenIdMap: {},
+    segments: {},
   }
 }
 
@@ -103,119 +110,35 @@ export const gameBoardReducer = createReducer(
       .addCase(updateServerTurn, (state, action) => {
         // Just update the game board for this action.
         action.payload.segmentChanges.forEach((deltaSeg) => {
-          let xSegs = state.segmentIndexX[deltaSeg.x]
-          let ySegs = state.segmentIndexY[deltaSeg.y]
-          let isNew = false
-          if (!xSegs) {
-            xSegs = []
-            state.segmentIndexX[deltaSeg.x] = xSegs
-            isNew = true
+          const segmentIndex = `${deltaSeg.x},${deltaSeg.y}`
+          let segment = state.segments[segmentIndex]
+          if (segment === undefined) {
+            // Need to create the segment.
+            const tiles: Tile[] = []
+            const count = state.segmentSize.width * state.segmentSize.height
+            for (let i = 0; i < count; i++) {
+              tiles.push({...EMPTY_TILE})
+            }
+            segment = {
+              position: { x: deltaSeg.x, y: deltaSeg.y },
+              tiles,
+            }
+            state.segments[segmentIndex] = segment
           }
-          if (!ySegs) {
-            ySegs = []
-            state.segmentIndexY[deltaSeg.y] = ySegs
-            isNew = true
-          }
-          if (isNew) {
-            const newSegment: GameBoardSegment = {
-              position: {x: deltaSeg.x, y: deltaSeg.y},
-              tiles: [],
-            }
-            const newIndex = state.segments.push(newSegment) - 1
-            xSegs.push(newIndex)
-            ySegs.push(newIndex)
-            deltaSeg.tiles.forEach((deltaTile) => {
-              const params: TileParameterValue[] = []
-              deltaTile.parameters.forEach((deltaParam) => {
-                params.push({
-                  parameterIndex: deltaParam.parameterIndex,
-                  quantity: deltaParam.quantity,
-                  vector: {x: deltaParam.x, y: deltaParam.y},
-                })
-              })
-              const tileIndex = newSegment.tiles.length
-              newSegment.tiles.push({
-                category: deltaTile.category || 'unset',
-                height: deltaTile.z || 0,
-                variation: 0,
-                tokenId: deltaTile.tokenId || null,
-                parameters: [],
-              })
-              if (deltaTile.tokenId !== undefined) {
-                let tileMapping = state.tokenIdMap[deltaTile.tokenId]
-                if (tileMapping === undefined) {
-                  tileMapping = []
-                  state.tokenIdMap[deltaTile.tokenId] = tileMapping
-                }
-                tileMapping.push([newIndex, tileIndex])
-              }
-            })
-            // Only when a new segment is added to we adjust the board size.
-            if (deltaSeg.x < state.size.minX) {
-              state.size.minX = deltaSeg.x
-            }
-            if (deltaSeg.x > state.size.maxX) {
-              state.size.maxX = deltaSeg.x
-            }
-            if (deltaSeg.y < state.size.minY) {
-              state.size.minY = deltaSeg.y
-            }
-            if (deltaSeg.y > state.size.maxY) {
-              state.size.maxY = deltaSeg.y
-            }
-          } else {
-            // Find the intersection of xSegs and ySegs.
-            //  ... or, just look at one list's indexes and search through it
-            //      for the matching segment.
-            let segList: number[]
-            let checkIndex: keyof(BoardPosition)
-            if (xSegs.length < ySegs.length) {
-              segList = xSegs
-              checkIndex = 'y'
+
+          deltaSeg.tiles.forEach((deltaTile) => {
+            const tileIndex = (state.segmentSize.width * deltaTile.y) + deltaTile.x
+            if (tileIndex < 0 || tileIndex >= segment.tiles.length) {
+              console.error(`Invalid server token position ${deltaTile.x}, ${deltaTile.y}`)
             } else {
-              segList = ySegs
-              checkIndex = 'x'
+              const tile = segment.tiles[tileIndex]
+              tile.category = (deltaTile.category === undefined ? tile.category : deltaTile.category)
+              tile.height = (deltaTile.z === undefined ? tile.height : deltaTile.z)
+              tile.tokenId = (deltaTile.tokenId === undefined ? tile.tokenId : deltaTile.tokenId)
+
+              // TODO merge parameters
             }
-            for (let i = 0; i < segList.length; i++) {
-              const existingSeg = state.segments[segList[i]]
-              // Note that only 1 check is needed; the index for the value that
-              //   we know wasn't an exact match for this list.
-              if (existingSeg.position[checkIndex] === deltaSeg[checkIndex]) {
-                // Found it.
-                // Every tile in the updated segment is updated here.
-                deltaSeg.tiles.forEach((deltaTile) => {
-                  const tileIndex = deltaTile.x + (deltaTile.y * state.segmentSize.width)
-                  const existingTile = existingSeg.tiles[tileIndex]
-                  if (deltaTile.category !== undefined) {
-                    existingTile.category = deltaTile.category
-                  }
-                  if (deltaTile.z !== undefined) {
-                    existingTile.height = deltaTile.z
-                  }
-                  deltaTile.parameters.forEach((deltaParam) => {
-                    let notFound = true
-                    for (let i = 0; i < existingTile.parameters.length; i++) {
-                      if (existingTile.parameters[i].parameterIndex === deltaParam.parameterIndex) {
-                        existingTile.parameters[i].quantity = deltaParam.quantity
-                        existingTile.parameters[i].vector.x = deltaParam.x
-                        existingTile.parameters[i].vector.y = deltaParam.y
-                        notFound = false
-                        break
-                      }
-                    }
-                    if (notFound) {
-                      existingTile.parameters.push({
-                        parameterIndex: deltaParam.parameterIndex,
-                        quantity: deltaParam.quantity,
-                        vector: {x: deltaParam.x, y: deltaParam.y},
-                      })
-                    }
-                  })
-                })
-                break
-              }
-            }
-          }
+          })
         })
       })
   }

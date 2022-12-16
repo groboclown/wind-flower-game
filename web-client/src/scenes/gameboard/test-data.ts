@@ -5,24 +5,59 @@ import {
   BoardPosition,
 	BoardRect,
 	GameBoardSegment,
+  getGameBoardSegmentKey,
+  EMPTY_TILE,
 } from '../../store'
 
 
 export function createBoardRect(
-  size: BoardSize,
+  segments: GameBoardSegment[],
+  segmentSize: BoardSize,
 ): BoardRect {
-  return {
-    minX: -(size.width * 1.5) | 0,
-    maxX:  (size.width * 1.5) | 0,
-    minY: -(size.height * 1.5) | 0,
-    maxY:  (size.height * 1.5) | 0,
+  let minX = 1000000000
+  let maxX = -1000000000
+  let minY = 1000000000
+  let maxY = -1000000000
+
+  for (let i = 0; i < segments.length; i++) {
+    const segMinX = segments[i].position.x
+    const segMinY = segments[i].position.y
+    const segMaxX = segMinX + segmentSize.width
+    const segMaxY = segMinY + segmentSize.height
+    minX = Math.min(segMinX, minX)
+    maxX = Math.max(segMaxX, maxX)
+    minY = Math.min(segMinY, minY)
+    maxY = Math.min(segMaxY, maxY)
   }
+  return { minX, minY, maxX, maxY }
+}
+
+
+export function createBlankBoard(
+  size: BoardSize,
+): {[keys: string]: GameBoardSegment} {
+  return createGameBoard(
+    size,
+    [
+      createEmptyTokenSegment(size, 0),
+      createEmptyTokenSegment(size, 1),
+      createEmptyTokenSegment(size, 2),
+
+      createEmptyTokenSegment(size, 3),
+      createEmptyTokenSegment(size, 4),
+      createEmptyTokenSegment(size, 5),
+
+      createEmptyTokenSegment(size, 6),
+      createEmptyTokenSegment(size, 7),
+      createEmptyTokenSegment(size, 8),
+    ]
+  )
 }
 
 
 export function createAlternatingBoard(
   size: BoardSize,
-): GameBoardSegment[] {
+): {[keys: string]: GameBoardSegment} {
   return createGameBoard(
     size,
     [
@@ -46,7 +81,7 @@ export function createAlternatingTokenSegment(
   size: BoardSize,
   startIndex: number
 ): (Tile | null)[] {
-  const tokens = createEmptyTokenSegment(size)
+  const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
     tokens[i] = {
@@ -63,7 +98,24 @@ export function createAlternatingEmptyTokenSegment(
   size: BoardSize,
   startIndex: number
 ): (Tile | null)[] {
-  const tokens = createEmptyTokenSegment(size)
+  const tokens = createNullTokenSegment(size)
+  const tokenSize = getTokenBoardSize(size)
+  for (let i = 0; i < tokens.length; i++) {
+    tokens[i] = {
+      ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
+      height: calculateHeight(i, tokenSize, 6),
+      tokenId: (23 * size.width * size.height * startIndex) + i,
+    }
+  }
+  return tokens
+}
+
+
+export function createEmptyTokenSegment(
+  size: BoardSize,
+  startIndex: number
+): (Tile | null)[] {
+  const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
     tokens[i] = {
@@ -123,8 +175,7 @@ function calculateHeight(tokenIndex: number, tokenBoardSize: BoardSize, heightTy
 }
 
 
-
-function createEmptyTokenSegment(
+function createNullTokenSegment(
   size: BoardSize,
 ): (Tile | null)[] {
   const tokenSize = getTokenBoardSize(size)
@@ -137,11 +188,11 @@ function createEmptyTokenSegment(
 function createGameBoard(
   size: BoardSize,
   tokens: (Tile | null)[][],
-): GameBoardSegment[] {
+): {[keys: string]: GameBoardSegment} {
   if (tokens.length !== 9) {
     throw new Error(`Expected 9 token groups, found ${tokens.length}`)
   }
-  return [
+  return asMappedSegments([
     hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y: -(size.height * 1.5) | 0}, tokens[0]),
     hexTokensToSegment(size, {x: -(size.width * 0.5) | 0, y: -(size.height * 1.5) | 0}, tokens[1]),
     hexTokensToSegment(size, {x:  (size.width * 0.5) | 0, y: -(size.height * 1.5) | 0}, tokens[2]),
@@ -153,7 +204,17 @@ function createGameBoard(
     hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y:  (size.height * 0.5) | 0}, tokens[6]),
     hexTokensToSegment(size, {x: -(size.width * 0.5) | 0, y:  (size.height * 0.5) | 0}, tokens[7]),
     hexTokensToSegment(size, {x:  (size.width * 0.5) | 0, y:  (size.height * 0.5) | 0}, tokens[8]),
-  ]
+  ])
+}
+
+
+function asMappedSegments(segments: GameBoardSegment[]) {
+  const ret: {[keys: string]: GameBoardSegment} = {}
+  segments.forEach((seg) => {
+    const key = getGameBoardSegmentKey(seg)
+    ret[key] = seg
+  })
+  return ret
 }
 
 
@@ -171,14 +232,6 @@ function getTokenBoardSize(
   return { width: tokenWidth, height: tokenHeight | 0 }
 }
 
-
-const EMPTY_TILE: Tile = {
-  category: null,
-  variation: 0,
-  height: -10,
-  tokenId: null,
-  parameters: [],
-}
 
 const RED_TILE: Tile = {
   category: 'red',

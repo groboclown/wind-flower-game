@@ -1,7 +1,7 @@
 // The Primary Game.  Viewing the Game Board.
 import { Scene3D, ExtendedObject3D } from '@enable3d/phaser-extension'
 import { THREE } from 'enable3d'
-import { createGrid, GridBoard3D } from './grid'
+import { Table3D, GridBoardUserData, createTableGrid, getGridBoardData } from './grid'
 import { createCameraInputControls } from './input'
 import { TextureHandler } from './texture-handler'
 import { getCachedTexture } from '../../lib/cache/texture'
@@ -22,29 +22,32 @@ import {
   gameBoardTokenDeSelected,
   gameBoardTokenHoverOver,
 } from '../../store'
-import { createAlternatingBoard, createBoardRect } from './test-data'
+
+import { createAlternatingBoard } from './test-data'
 
 
 interface HexToken {
   // length === 6
-  tiles: number[][]
+  tiles: number[]
   // indicies for each of the 6 faces.
   // face 0 -> 0, 1, 2
   // face 1 -> 3, 4, 5
   // ...
   tokenId: number | null
+  segmentKey: string | null
 }
 
 
 interface IntersectedTile {
   object: ExtendedObject3D
   tokenId: number
-  tileIds: number[][]
+  tileIds: number[]
+  segmentKey: string
 }
 
 
 export default class GameBoardScene extends Scene3D {
-  private grid: GridBoard3D | null
+  private table3d: Table3D | null
 	private controls: CameraInput | null
   private raycaster: THREE.Raycaster
   private textureHandler: TextureHandler | null
@@ -52,24 +55,28 @@ export default class GameBoardScene extends Scene3D {
   private hoverToken: HexToken
   private selectToken: HexToken
 
-  // until we get something real
+  // until we get something real.
   private gameBoardState: GameBoardState
+  //  - token ID to the tile index; will need something better.
+  private tokenTileMap: {[key: number]: number[]}
 
 
   constructor() {
     super({ key: GAMEBOARD_SCENE_NAME })
-		this.grid = null
+		this.table3d = null
 		this.controls = null
     this.raycaster = new THREE.Raycaster()
     this.textureHandler = null
 
     this.hoverToken = {
-      tiles: [[], [], [], [], [], []],
+      tiles: [0, 0, 0, 0, 0, 0],
       tokenId: null,
+      segmentKey: null,
     }
     this.selectToken = {
-      tiles: [[], [], [], [], [], []],
+      tiles: [0, 0, 0, 0, 0, 0],
       tokenId: null,
+      segmentKey: null,
     }
 
     // TODO use the state to render it all.
@@ -80,34 +87,35 @@ export default class GameBoardScene extends Scene3D {
     //   This is hard-coded for now.
     const boardSize: BoardSize = {width: 3 * 10, height: 2 * 10}
     const boardSegments = createAlternatingBoard(boardSize)
-    const tokenIdMap: {[key: number]: number[][]} = {}
-    for (let segI = 0; segI < boardSegments.length; segI++) {
-      for (let idx = 0; idx < boardSegments[segI].tiles.length; idx++) {
-        const tokenId = boardSegments[segI].tiles[idx].tokenId
-        if (tokenId !== null) {
-          let tiles = tokenIdMap[tokenId]
-          if (tiles === undefined) {
-            tiles = []
-            tokenIdMap[tokenId] = tiles
-          }
-          tiles.push([segI, idx])
-        }
-      }
-    }
 
     this.gameBoardState = {
       size: {minX: 0, maxX: boardSize.width, minY: 0, maxY: boardSize.height},
-      segmentIndexX: [],
-      segmentIndexY: [],
       segments: boardSegments,
       segmentSize: boardSize,
-      tokenIdMap,
     }
+
+    const tileMap: {[key: number]: number[]} = {}
+    Object.values(boardSegments).forEach((seg) => {
+      for (let i = 0; i < seg.tiles.length; i++) {
+        const tokenId = seg.tiles[i].tokenId
+        if (tokenId !== null) {
+          let tileIds = tileMap[tokenId]
+          if (tileIds === undefined) {
+            tileIds = []
+            tileMap[tokenId] = tileIds
+          }
+          tileIds.push(i)
+        }
+      }
+    })
+    this.tokenTileMap = tileMap
   }
+
 
   init() {
     this.accessThirdDimension()
   }
+
 
   create(): void {
     const self = this
@@ -150,81 +158,66 @@ export default class GameBoardScene extends Scene3D {
     store.subscribe(() => this.stateUpdated())
   }
 
+
   // updateHexGrid when the segments update, they need to be rerendered.
   updateHexGrid() {
     if (this.textureHandler === null) {
       throw new Error('did not initialize')
     }
 
-    const boardRect = createBoardRect(this.gameBoardState.segmentSize)
     const meshTexture = getCachedTexture(this, 'mesh-texture')
     meshTexture.mapping = THREE.UVMapping
 
     // for (let i = 0; i < this.gameBoardState.segments.length; i++) {
     //   console.log(`Segment ${i} sized ${this.gameBoardState.segments[i].tiles.length}`)
     // }
-		this.grid = createGrid(
-      this.gameBoardState.segments,
-      this.gameBoardState.segmentSize,
-      boardRect,
+		this.table3d = createTableGrid(
+      this.gameBoardState,
       meshTexture,
       this.textureHandler,
     )
 
-    this.third.scene.add(this.grid.object)
-		this.third.physics.add.existing(this.grid.object)
-		this.grid.object.body.setCollisionFlags(1)  // STATIC
+    Object.values(this.table3d.objects).forEach((object) => {
+      this.third.scene.add(object)
+      this.third.physics.add.existing(object)
+      object.body.setCollisionFlags(1)  // STATIC
+    })
   }
+
 
   update() {
     this.controls?.onUpdate()
     this.events.emit('addScore')
 	}
 
+
   private onCameraPointerMoved(x: number, y: number) {
     // Calculate pointer position in normalized device coordinates
 	  //   (-1 to +1) for both components
 
     // console.log(`last mouse position set at (${x}, ${y})`)
-    if (this.grid) {
+    if (this.table3d) {
       const nextHovered = this.findIntersectedTokenId(x, y)
       const nextHoveredTokenId = (nextHovered === null) ? null : nextHovered.tokenId
 
       // console.log(`hovered token: ${this.currentlyHoveredTokenId} -> ${this.nextHoveredTokenId}`)
       if (this.hoverToken.tokenId !== nextHoveredTokenId) {
         // console.log(`changing hovered token: ${this.hoverToken.tokenId} -> ${nextHoveredTokenId}`)
-        const lastTokenId = this.hoverToken.tokenId
         const lastTokenTiles = this.hoverToken.tiles
+        const lastTokenSegmentKey = this.hoverToken.segmentKey
         if (nextHovered !== null) {
           this.hoverToken.tiles = nextHovered.tileIds
           this.hoverToken.tokenId = nextHoveredTokenId
+          this.hoverToken.segmentKey = nextHovered.segmentKey
         } else {
           this.hoverToken.tokenId = null
+          this.hoverToken.segmentKey = null
         }
 
-        if (lastTokenId !== null) {
-          // Refresh the last one to the standard state.
-          for (let i = 0; i < 6; i++) {
-            const tilePos = lastTokenTiles[i]
-            const tile = this.gameBoardState.segments[tilePos[0]].tiles[tilePos[1]]
-            this.changeTexture({
-              vertexIndicies: this.grid.tileIndexToVertexIndex[tilePos[1]],
-              tile,
-              hexIndex: i,
-            })
-          }
-        }
+        this.changeTokenTexture(lastTokenSegmentKey, lastTokenTiles)
 
-        if (nextHovered !== null && nextHoveredTokenId !== null) {
-          for (let i = 0; i < 6; i++) {
-            const tilePos = this.hoverToken.tiles[i]
-            const tile = this.gameBoardState.segments[tilePos[0]].tiles[tilePos[1]]
-            this.changeTexture({
-              vertexIndicies: this.grid.tileIndexToVertexIndex[tilePos[1]],
-              tile,
-              hexIndex: i,
-            })
-          }
+        if (nextHovered !== null) {
+          this.changeTokenTexture(nextHovered.segmentKey, this.hoverToken.tiles)
         }
         store.dispatch(gameBoardTokenHoverOver({ tokenId: nextHoveredTokenId }))
       }
@@ -233,12 +226,12 @@ export default class GameBoardScene extends Scene3D {
 
   private onCameraPointerSelected(x: number, y: number) {
     // console.log(`Clicked on ${x}, ${y}`)
-    if (this.grid) {
+    if (this.table3d) {
       const nextSelected = this.findIntersectedTokenId(x, y)
       const nextSelectedTokenId = (nextSelected === null) ? null : nextSelected.tokenId
       if (this.selectToken.tokenId !== nextSelectedTokenId) {
         // Change the selection; maybe to nothing.
-        const lastTokenId = this.selectToken.tokenId
+        const lastTokenSegmentKey = this.selectToken.segmentKey
         const lastTokenTiles = this.selectToken.tiles
         if (nextSelected !== null) {
           this.selectToken.tokenId = nextSelected.tokenId
@@ -247,29 +240,10 @@ export default class GameBoardScene extends Scene3D {
           this.selectToken.tokenId = null
         }
 
-        if (lastTokenId !== null) {
-          // Refresh the last one to the standard state.
-          for (let i = 0; i < 6; i++) {
-            const tilePos = lastTokenTiles[i]
-            const tile = this.gameBoardState.segments[tilePos[0]].tiles[tilePos[1]]
-            this.changeTexture({
-              vertexIndicies: this.grid.tileIndexToVertexIndex[tilePos[1]],
-              tile,
-              hexIndex: i,
-            })
-          }
-        }
+        this.changeTokenTexture(lastTokenSegmentKey, lastTokenTiles)
 
-        if (nextSelected !== null && nextSelectedTokenId !== null) {
-          for (let i = 0; i < 6; i++) {
-            const tilePos = this.selectToken.tiles[i]
-            const tile = this.gameBoardState.segments[tilePos[0]].tiles[tilePos[1]]
-            this.changeTexture({
-              vertexIndicies: this.grid.tileIndexToVertexIndex[tilePos[1]],
-              tile,
-              hexIndex: i,
-            })
-          }
+        if (nextSelected !== null) {
+          this.changeTokenTexture(nextSelected.segmentKey, this.hoverToken.tiles)
         }
 
         if (nextSelectedTokenId !== null) {
@@ -277,10 +251,7 @@ export default class GameBoardScene extends Scene3D {
         } else {
           store.dispatch(gameBoardTokenDeSelected({}))
         }
-
       }
-
-
     }
   }
 
@@ -289,16 +260,18 @@ export default class GameBoardScene extends Scene3D {
   }
 
   private findIntersectedTokenId(x: number, y: number): IntersectedTile | null {
-    if (this.grid) {
+    if (this.table3d) {
       // update the picking ray with the camera and pointer position
       this.raycaster.setFromCamera({x, y}, this.third.camera)
-      const intersects = this.raycaster.intersectObject(this.grid.object)
+      const intersects = this.raycaster.intersectObjects(Object.values(this.table3d.objects))
       if (intersects.length > 0) {
         const intersect = intersects[0]
+        const object = intersect.object
         //const faceIndex = intersect.faceIndex
         const face = intersect.face
-        if (face) {
-          const tokenId = this.grid.vertexToTokenId[face.a]
+        if (face && object) {
+          const userData = object.userData as GridBoardUserData
+          const tokenId = userData.vertexToTokenId[face.a]
           if (tokenId === undefined) {
             return null
           }
@@ -306,7 +279,8 @@ export default class GameBoardScene extends Scene3D {
           return {
             object: intersect.object as ExtendedObject3D,
             tokenId,
-            tileIds: this.gameBoardState.tokenIdMap[tokenId],
+            tileIds: this.tokenTileMap[tokenId],
+            segmentKey: userData.segmentKey,
           }
         }
       }
@@ -314,18 +288,37 @@ export default class GameBoardScene extends Scene3D {
     return null
   }
 
+  private changeTokenTexture(segmentKey: string | null, tokenTiles: number[]) {
+    if (this.table3d !== null && segmentKey !== null) {
+      // Refresh the last one to the standard state.
+      const segment = this.gameBoardState.segments[segmentKey]
+      const userData = getGridBoardData(this.table3d, segmentKey)
+      for (let i = 0; i < 6; i++) {
+        const tilePos = tokenTiles[i]
+        const tile = segment.tiles[tilePos]
+        this.changeTexture({
+          segmentKey,
+          vertexIndicies: userData.tileIndexToVertexIndex[tilePos],
+          tile,
+          hexIndex: i,
+        })
+      }
+    }
+  }
+
   private changeTexture(
       args: {
+        segmentKey: string,
         vertexIndicies: number[],
         tile: Tile, hexIndex: number,
       }
   ) {
-    if (this.textureHandler && this.grid) {
+    if (this.textureHandler && this.table3d) {
       const hover = args.tile.tokenId === this.hoverToken.tokenId
       const select = args.tile.tokenId === this.selectToken.tokenId
 
       const map = this.textureHandler.getTileUVMap(args.tile, args.hexIndex, hover, select)
-      const uv = this.grid.geometry.getAttribute('uv')
+      const uv = this.table3d.objects[args.segmentKey].geometry.getAttribute('uv')
       // console.debug(`Setting texture at ${args.vertexIndicies[0]} to ${map[0][0]}, ${map[0][1]} with ${hover} / ${select}`)
       for (let i = 0; i < 3; i++) {
         uv.setXY(args.vertexIndicies[i], map[i][0], map[i][1])

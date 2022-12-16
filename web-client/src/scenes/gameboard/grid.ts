@@ -1,16 +1,24 @@
 // Create the grid mesh.
 import { THREE, ExtendedMesh, ExtendedObject3D } from 'enable3d'
 import { TextureHandler } from './texture-handler'
-import { GameBoardSegment, BoardSize, BoardRect, Tile } from '../../store/state/board'
+import { sortGameBoardSegments } from '../../lib/board-helper/sort'
+import {
+  GameBoardState,
+  GameBoardSegment,
+  BoardSize,
+  BoardRect,
+  Tile,
+  getGameBoardSegmentKey,
+  EMPTY_TILE,
+} from '../../store/state/board'
 
 
-// TODO when multiple grid boards are supported, this will
-// need to instead just be user data on the object.
-export interface GridBoard3D {
-  readonly object: ExtendedObject3D
-  readonly geometry: THREE.BufferGeometry
-  readonly mesh: ExtendedMesh
+export interface Table3D {
+  readonly objects: {[keys: string]: ExtendedObject3D}
+}
 
+
+export interface GridBoardUserData {
   // Vertex index -> token position index
   //   For each vertex in the geometry, its index is mapped to
   //   the token ID of the original grid.
@@ -18,7 +26,76 @@ export interface GridBoard3D {
 
   // index in the segment tile index -> vertex index
   readonly tileIndexToVertexIndex: {[key: number]: number[]}
+
+  readonly segmentKey: string
 }
+
+
+export function getGridBoardData(table: Table3D, segmentKey: string): GridBoardUserData {
+  return table.objects[segmentKey].userData as GridBoardUserData
+}
+
+
+// createTableGrid construct a 3d model of the game board
+//   Each segment is made into its own object.
+export function createTableGrid(
+  gameBoard: GameBoardState,
+  meshTexture: THREE.Texture,
+  textureHandler: TextureHandler,
+): Table3D {
+
+  // Order the game boards into row / column, so that
+  const rowColumns = sortGameBoardSegments(gameBoard.segments)
+  const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentSize)
+
+  const objects: {[keys: string]: ExtendedObject3D} = {}
+  for (let rowIndex = 0; rowIndex < rowColumns.length; rowIndex++) {
+    const columns = rowColumns[rowIndex]
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
+      // Construct the 3x3 grid to pass to the segment constructor.
+      const segments: GameBoardSegment[] = []
+      for (let rowDelta = -1; rowDelta <= 1; rowDelta++) {
+        for (let columnDelta = -1; columnDelta <= 1; columnDelta++) {
+          const row = rowIndex + rowDelta
+          const col = columnIndex + columnDelta
+          if (row < 0 || col < 0 || row >= rowColumns.length || col >= rowColumns[row].length) {
+            segments.push({
+              tiles: emptySegmentTiles,
+              // position doesn't matter for the empty table.
+              position: {x: col, y: row},
+            })
+          } else {
+            segments.push(rowColumns[row][col])
+          }
+        }
+      }
+      const key = getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX])
+      objects[key] = createSegmentGrid(
+        segments,
+        gameBoard.segmentSize,
+        gameBoard.size,
+        meshTexture,
+        textureHandler,
+      )
+    }
+  }
+  return {
+    objects,
+  }
+}
+
+
+function cloneTileToBoardSegment(
+  tileTemplate: Tile, size: BoardSize,
+): Tile[] {
+  const count = size.width * size.height
+  const tiles: Tile[] = []
+  for (let i = 0; i < count; i++) {
+    tiles.push({ ...tileTemplate })
+  }
+  return tiles
+}
+
 
 // TODO look at adding an index, as each point is
 // shared with up to 6 triangles.
@@ -200,13 +277,13 @@ const BR_SEGMENT_INDEX = 8
 //      +---+---+---+
 //      | 6 | 7 | 8 |
 //      +---+---+---+
-export function createGrid(
+export function createSegmentGrid(
   segments: GameBoardSegment[],
   segmentSize: BoardSize,
   boardDim: BoardRect,
   meshTexture: THREE.Texture,
   textureHandler: TextureHandler,
-): GridBoard3D {
+): ExtendedObject3D {
   const triangleCount = segmentSize.width * segmentSize.height
 
   const vertexToTokenId: {[key: number]: number} = {}
@@ -427,13 +504,12 @@ export function createGrid(
   const object = new ExtendedObject3D()
   object.add(mesh)
 
-  return {
-    object,
-    geometry,
-    mesh,
+  object.userData = {
     vertexToTokenId,
     tileIndexToVertexIndex,
-  }
+    segmentKey: getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX]),
+  } as GridBoardUserData
+  return object
 }
 
 
