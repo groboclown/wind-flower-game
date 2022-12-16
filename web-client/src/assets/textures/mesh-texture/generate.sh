@@ -8,6 +8,13 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ -z "$1" ] ; then
   exit 0
 fi
 
+# Based on uv rounding issues, shrink in by 1 pixel on left/top, 1 on right/bottom
+LEFT_PIXEL_ADJ=4
+TOP_PIXEL_ADJ=4
+RIGHT_PIXEL_ADJ=-6
+BOTTOM_PIXEL_ADJ=-6
+
+
 which convert >/dev/null 2>&1
 convert_exist=$?
 which inkscape >/dev/null 2>&1
@@ -42,10 +49,12 @@ for src in *.svg ; do
     # Assemble the decal variations on a single row.
     current_width=0
 
-    h0=${current_height}
-    h1=$(( current_height + 432 ))
-    h2=$(( current_height + 433 ))
-    h3=$(( current_height + 865 ))
+    # Based on uv rounding issues, shrink in by 1 pixel on left/top, 1 on right/bottom
+    # Any other gaps in the image is due to the source image being wrong.
+    h0=$(( current_height + TOP_PIXEL_ADJ ))
+    h432=$(( current_height + 432 + BOTTOM_PIXEL_ADJ ))
+    h433=$(( current_height + 433 + TOP_PIXEL_ADJ ))
+    h865=$(( current_height + 865 + BOTTOM_PIXEL_ADJ ))
     current_height=$(( current_height + 866 ))
 
     echo "${row_append}\"${category}\": {" >> "${outdir}/uv-map.json"
@@ -91,35 +100,35 @@ for src in *.svg ; do
       echo "${cat_append}\"${mode}\": [" >> "${outdir}/uv-map.json"
       cat_append=", "
 
-      w0=$(( current_width + 0 ))
-      w249=$(( current_width + 249 ))
-      w250=$(( current_width + 250 ))
-      w499=$(( current_width + 499 ))
-      w500=$(( current_width + 500 ))
-      w749=$(( current_width + 749 ))
-      w999=$(( current_width + 999 ))
+      w0=$(( current_width + LEFT_PIXEL_ADJ ))
+      w249=$(( current_width + 249 + RIGHT_PIXEL_ADJ ))
+      w250=$(( current_width + 250 + LEFT_PIXEL_ADJ ))
+      w499=$(( current_width + 499 + RIGHT_PIXEL_ADJ ))
+      w500=$(( current_width + 500 + LEFT_PIXEL_ADJ ))
+      w749=$(( current_width + 749 + RIGHT_PIXEL_ADJ ))
+      w999=$(( current_width + 999 + RIGHT_PIXEL_ADJ ))
       current_width=$(( current_width + 1000 ))
       if [ ${current_width} -gt ${max_width} ] ; then
         max_width=${current_width}
       fi
 
       # triangle 0
-      echo "[[${w249}, ${h0}], [${w0}, ${h1}], [${w499}, ${h1}]], " >> "${outdir}/uv-map.json"
+      echo "[[${w249}, ${h0}], [${w0}, ${h432}], [${w499}, ${h432}]], " >> "${outdir}/uv-map.json"
 
       # triangle 1
-      echo "[[${w500}, ${h1}], [${w749}, ${h0}], [${w250}, ${h0}]], " >> "${outdir}/uv-map.json"
+      echo "[[${w500}, ${h432}], [${w749}, ${h0}], [${w250}, ${h0}]], " >> "${outdir}/uv-map.json"
 
       # triangle 2
-      echo "[[${w749}, ${h0}], [${w500}, ${h1}], [${w999}, ${h1}]], " >> "${outdir}/uv-map.json"
+      echo "[[${w749}, ${h0}], [${w500}, ${h432}], [${w999}, ${h432}]], " >> "${outdir}/uv-map.json"
 
       # triangle 3
-      echo "[[${w249}, ${h3}], [${w499}, ${h2}], [${w0}, ${h2}]], " >> "${outdir}/uv-map.json"
+      echo "[[${w249}, ${h865}], [${w499}, ${h433}], [${w0}, ${h433}]], " >> "${outdir}/uv-map.json"
 
       # triangle 4
-      echo "[[${w499}, ${h2}], [${w250}, ${h3}], [${w749}, ${h3}]], " >> "${outdir}/uv-map.json"
+      echo "[[${w499}, ${h433}], [${w250}, ${h865}], [${w749}, ${h865}]], " >> "${outdir}/uv-map.json"
 
       # triangle 5
-      echo "[[${w749}, ${h3}], [${w999}, ${h2}], [${w500}, ${h2}]]]" >> "${outdir}/uv-map.json"
+      echo "[[${w749}, ${h865}], [${w999}, ${h433}], [${w500}, ${h433}]]]" >> "${outdir}/uv-map.json"
     done
     echo "}" >> "${outdir}/uv-map.json"
 

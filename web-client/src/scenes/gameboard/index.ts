@@ -40,7 +40,6 @@ interface IntersectedTile {
   object: ExtendedObject3D
   tokenId: number
   tileIds: number[][]
-  vertexIndicies: number[]
 }
 
 
@@ -49,9 +48,6 @@ export default class GameBoardScene extends Scene3D {
 	private controls: CameraInput | null
   private raycaster: THREE.Raycaster
   private textureHandler: TextureHandler | null
-
-  // debug tool to see where the camera is pointing.
-  private tmpFocusBox: ExtendedObject3D | null
 
   private hoverToken: HexToken
   private selectToken: HexToken
@@ -66,8 +62,6 @@ export default class GameBoardScene extends Scene3D {
 		this.controls = null
     this.raycaster = new THREE.Raycaster()
     this.textureHandler = null
-
-    this.tmpFocusBox = null
 
     this.hoverToken = {
       tiles: [[], [], [], [], [], []],
@@ -118,16 +112,11 @@ export default class GameBoardScene extends Scene3D {
   create(): void {
     const self = this
 
-    // Creates a nice scene.  Ignore the promise.
-    void this.third.warpSpeed(
-      // Places:
-      // a hemisphere light
-      // an ambient light
+    const defaultLookAt = new THREE.Vector3(-14, 0, 2)
+		this.third.camera.position.set(0, 6, 12)
+		// this.third.camera.lookAt(defaultLookAt)
 
-      // a camera in position (0, 6, 12)
-      'camera',
-    )
-		// Input Controls
+    // Input Controls
     this.controls = createCameraInputControls(this)
     this.controls.setPolarAngleBounds(0, Math.PI / 3)
     this.controls.setZoomBounds(3, 20)
@@ -135,37 +124,22 @@ export default class GameBoardScene extends Scene3D {
     this.input.on(CAMERA_POINTER_SELECTION, (x: number, y: number) => self.onCameraPointerSelected(x, y))
     this.input.on(CAMERA_SELECTION_MOVED, (change: THREE.Vector3) => self.onCameraSelectionMoved(change))
 
-		// this.third.camera.position.set(-20, 6, 0)
-		// this.third.camera.lookAt(this.third.scene.position)
     this.controls.positionAt(new THREE.Vector3(-20, 6, 0))
-    // this.controls.lookAt(this.third.scene.position)
-    this.controls.lookAt(new THREE.Vector3(-14, 0, 2))
+    this.controls.lookAt(defaultLookAt)
 
     // Background
     this.third.scene.background = new THREE.Color(0x0a0a0a)
 
 		// Fog
 		// color, near distance, far distance
+    // Its color matches the background.
 		this.third.scene.fog = new THREE.Fog(0x0a0a0a, 10, 100)
 
     // Lighting
-    this.third.scene.add(new THREE.AmbientLight(0x444444))
-    const light1 = new THREE.DirectionalLight(0xffffff, 0.5)
+    this.third.scene.add(new THREE.AmbientLight(0x444444, 1.0))
+    const light1 = new THREE.DirectionalLight(0xffffff, 1.5)
     light1.position.set(1, 1, 1)
     this.third.scene.add(light1)
-    const light2 = new THREE.DirectionalLight(0xffffff, 1.5)
-    light2.position.set(0, - 1, 0)
-    this.third.scene.add(light2)
-
-    // DEBUG show where the camera is pointing
-    this.tmpFocusBox = this.third.add.box({
-      x: -14,
-      y: 5,
-      z: 2,
-      width: .2,
-      height: 10,
-      depth: .2,
-    })
 
     // Create the selection stuff.
     this.textureHandler = new TextureHandler(this.cache.json.get('mesh-uv-map'))
@@ -197,33 +171,17 @@ export default class GameBoardScene extends Scene3D {
       this.textureHandler,
     )
 
-    // TODO DEBUG
-    //const uv = this.grid.geometry.getAttribute('uv')
-    //uv.setXY(0, 0, 0)
-    //uv.setXY(1, 0, 1)
-    //uv.setXY(2, 1, 1)
-    //
-
     this.third.scene.add(this.grid.object)
 		this.third.physics.add.existing(this.grid.object)
 		this.grid.object.body.setCollisionFlags(1)  // STATIC
   }
 
   update() {
-		// console.debug('Running update')
-    this.onControlsUpdated()
     this.controls?.onUpdate()
     this.events.emit('addScore')
 	}
 
-  private onControlsUpdated() {
-    if (this.controls && this.tmpFocusBox) {
-      this.tmpFocusBox.position.copy(this.controls.getTarget())
-    }
-  }
-
   private onCameraPointerMoved(x: number, y: number) {
-    // console.log(`pointer moved! ${Object.keys(pointer)}`)
     // Calculate pointer position in normalized device coordinates
 	  //   (-1 to +1) for both components
 
@@ -270,11 +228,6 @@ export default class GameBoardScene extends Scene3D {
         }
         store.dispatch(gameBoardTokenHoverOver({ tokenId: nextHoveredTokenId }))
       }
-    }
-
-    if (this.controls) {
-      // console.debug('Running controls update')
-      this.onControlsUpdated()
     }
   }
 
@@ -354,7 +307,6 @@ export default class GameBoardScene extends Scene3D {
             object: intersect.object as ExtendedObject3D,
             tokenId,
             tileIds: this.gameBoardState.tokenIdMap[tokenId],
-            vertexIndicies: this.grid.tokenIdToVertexIndex[tokenId],
           }
         }
       }

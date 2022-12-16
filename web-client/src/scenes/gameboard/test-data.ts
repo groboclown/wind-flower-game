@@ -26,17 +26,17 @@ export function createAlternatingBoard(
   return createGameBoard(
     size,
     [
-      createAlternatingTokenSegment(size, 0),
-      createAlternatingTokenSegment(size, 1),
-      createAlternatingTokenSegment(size, 2),
+      createAlternatingEmptyTokenSegment(size, 0),
+      createAlternatingEmptyTokenSegment(size, 1),
+      createAlternatingEmptyTokenSegment(size, 2),
 
       createAlternatingTokenSegment(size, 3),
-      createAlternatingTokenSegment(size, 4),
+      createAlternatingEmptyTokenSegment(size, 4),
       createAlternatingTokenSegment(size, 5),
 
-      createAlternatingTokenSegment(size, 6),
-      createAlternatingTokenSegment(size, 7),
-      createAlternatingTokenSegment(size, 8),
+      createAlternatingEmptyTokenSegment(size, 6),
+      createAlternatingEmptyTokenSegment(size, 7),
+      createAlternatingEmptyTokenSegment(size, 8),
     ],
   )
 }
@@ -244,8 +244,16 @@ const WATER_TILE: Tile = {
   parameters: [],
 }
 
-const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE]
-const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE]
+const DESERT_TILE: Tile = {
+  category: 'desert',
+  variation: 0,
+  height: 0,
+  tokenId: null,
+  parameters: [],
+}
+
+const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE, DESERT_TILE]
+const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE, DESERT_TILE]
 
 
 // hexTokensToSegment Turns a NxM grid of hex tokens (column major) into a segment.

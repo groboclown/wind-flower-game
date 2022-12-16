@@ -16,9 +16,7 @@ export interface GridBoard3D {
   //   the token ID of the original grid.
   readonly vertexToTokenId: {[key: number]: number}
 
-  // TokenID -> vertex index
-  //    still needed?
-  readonly tokenIdToVertexIndex: {[key: number]: number[]}
+  // index in the segment tile index -> vertex index
   readonly tileIndexToVertexIndex: {[key: number]: number[]}
 }
 
@@ -209,15 +207,9 @@ export function createGrid(
   meshTexture: THREE.Texture,
   textureHandler: TextureHandler,
 ): GridBoard3D {
-  // const tokenWidth = (segmentSize.width / 3) | 0
-  // const tokenHeight = (segmentSize.height / 2) | 0
   const triangleCount = segmentSize.width * segmentSize.height
 
-  // const tokenIdHexagonShape: {[key: number]: Float32Array} = {}
   const vertexToTokenId: {[key: number]: number} = {}
-  // const vertexToHexIndex: {[key: number]: number} = {}
-  const tokenIdToVertexIndex: {[key: number]: number[]} = {}
-  // const vertexToTileId: {[key: number]: number} = {}
   const tileIndexToVertexIndex: {[key: number]: number[]} = {}
 
   const geometry = new THREE.BufferGeometry()
@@ -380,42 +372,20 @@ export function createGrid(
 
       const tokenId = primary.tiles[tileI].tokenId
       if (tokenId !== null) {
-        let indexList = tokenIdToVertexIndex[tokenId]
-        if (indexList === undefined) {
-          indexList = []
-          tokenIdToVertexIndex[tokenId] = indexList
-        }
-
         // Convert the vertex x/y/z index into a vertex number.
         // This is what the geometry face vertex index references.
         const vertexIndex = (vIdx / 3) | 0
-        indexList.push(vertexIndex)
 
         for (let i = 0; i < 3; i++) {
           vertexToTokenId[vertexIndex + i] = tokenId
-          // vertexToHexIndex[vertexIndex + i] = hexIndex
-          // vertexToTileId[vertexIndex + i] = tileI
         }
         tileIndexToVertexIndex[tileI] = [vertexIndex, vertexIndex + 1, vertexIndex + 2]
-        // let hexPoints = tokenIdHexagonShape[tokenId]
-        // if (hexPoints === undefined) {
-        //   hexPoints = new Float32Array(6 * 3)
-        //   tokenIdHexagonShape[tokenId] = hexPoints
-        // }
-        // // This specific tile's donated point for the hexagon
-        // const triaglePointIndex = vIdx + TOKEN_POINT_INDEX[hexIndex]
-        // // The tile's point in the hexagon position list
-        // const tokenPointIndex = TOKEN_POINT_ORDER_INDEX[hexIndex] * 3
-        // hexPoints[tokenPointIndex + 0] = positions[triaglePointIndex + 0]
-        // hexPoints[tokenPointIndex + 1] = positions[triaglePointIndex + 1]
-        // hexPoints[tokenPointIndex + 2] = positions[triaglePointIndex + 2]
       } else {
         console.log(`No tokenId for ${tileI} <- vertex ${vIdx}`)
       }
 
       // -------------------------------------
       // End of loop number update
-      // tIdx++
       vIdx += 3 * 3
       uvIdx += 3 * 2
     }
@@ -435,7 +405,6 @@ export function createGrid(
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, vIdx), 3))
   geometry.setAttribute('normal', new THREE.BufferAttribute(normals.slice(0, vIdx), 3))
-  // geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, vIdx), 3))
   const uvAttrib = new THREE.Float32BufferAttribute(uvMap.slice(0, uvIdx), 2)
   uvAttrib.setUsage(THREE.DynamicDrawUsage)
   geometry.setAttribute('uv', uvAttrib)
@@ -444,10 +413,13 @@ export function createGrid(
 
   // MeshStandardMaterial
   // MeshPhongMaterial
-  const material = new THREE.MeshPhongMaterial({
+  // MeshPhysicalMaterial
+  const material = new THREE.MeshStandardMaterial({
     map: meshTexture,
-    specular: 0xaaaaaa,
-    shininess: 250,
+    // specular: 0xaaaaaa,
+    // shininess: 250,
+    metalness: 0.5,
+    blending: 1,
     side: THREE.DoubleSide,
   })
 
@@ -459,11 +431,7 @@ export function createGrid(
     object,
     geometry,
     mesh,
-    // tokenIdHexagonShape,
     vertexToTokenId,
-    // vertexToHexIndex,
-    tokenIdToVertexIndex,
-    // vertexToTileId,
     tileIndexToVertexIndex,
   }
 }
