@@ -1,23 +1,23 @@
 // Utilities for sorting the game board
-import { GameBoardSegment } from '../../store/state/board'
+import { ClientGameBoardSegment } from '../../gameboard-state'
 
 
 // sortGameBoardSegments sort the segments by row / column.
 //    Access by segments[rowIndex][columnIndex]
 export function sortGameBoardSegments(
-  segments: {[keys: string]: GameBoardSegment},
-): GameBoardSegment[][] {
-  const sorted: GameBoardSegment[][] = []
+  segments: {[keys: string]: ClientGameBoardSegment},
+): ClientGameBoardSegment[][] {
+  const sorted: ClientGameBoardSegment[][] = []
 
   // First, sort by row.  Put them on rows.
-  const byRow = groupSegmentsBy(Object.values(segments), (s) => s.position.y)
+  const byRow = groupSegmentsBy(Object.values(segments), (s) => s.y)
 
   // Then sort each column
   sortNumericKeys(byRow).forEach((columnKey) => {
-    const currentRow: GameBoardSegment[] = []
+    const currentRow: ClientGameBoardSegment[] = []
     sorted.push(currentRow)
 
-    const byColumn = groupSegmentsBy(byRow[columnKey], (s) => s.position.x)
+    const byColumn = groupSegmentsBy(byRow[columnKey], (s) => s.x)
     sortNumericKeys(byColumn).forEach((rowKey) => {
       // And for idential x,y coordinates, add them to the list.
       byColumn[rowKey].forEach((s) => currentRow.push(s))
@@ -28,10 +28,10 @@ export function sortGameBoardSegments(
 
 
 function groupSegmentsBy(
-  segments: GameBoardSegment[],
-  getValue: (g: GameBoardSegment) => number,
-): {[key: string]: GameBoardSegment[]} {
-  const groups: {[key: string]: GameBoardSegment[]} = {}
+  segments: ClientGameBoardSegment[],
+  getValue: (g: ClientGameBoardSegment) => number,
+): {[key: string]: ClientGameBoardSegment[]} {
+  const groups: {[key: string]: ClientGameBoardSegment[]} = {}
   segments.forEach((seg) => {
     const key = String(getValue(seg))
     let items = groups[key]
@@ -45,7 +45,7 @@ function groupSegmentsBy(
 }
 
 
-function sortNumericKeys(grouping: {[key: string]: GameBoardSegment[]}): string[] {
+function sortNumericKeys(grouping: {[key: string]: ClientGameBoardSegment[]}): string[] {
   const keyFloat: {[key: string]: number} = {}
   const keys: string[] = Object.keys(grouping)
   keys.sort((a, b) => keyFloat[a] - keyFloat[b])

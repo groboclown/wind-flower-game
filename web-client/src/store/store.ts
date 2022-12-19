@@ -1,7 +1,6 @@
 // The global, singleton redux store
 import { configureStore } from '@reduxjs/toolkit'
 import {
-  gameBoardReducer,
   clientPlayerReducer,
   gameLobbyReducer,
   gameplayInterfaceReducer,
@@ -9,7 +8,6 @@ import {
 
 export const store = configureStore({
   reducer: {
-    gameBoard: gameBoardReducer,
     clientPlayer: clientPlayerReducer,
     gameLobby: gameLobbyReducer,
     gameplayInterface: gameplayInterfaceReducer,

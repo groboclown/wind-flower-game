@@ -81,6 +81,15 @@ export class JsonLookup {
     }
   }
 
+  getLength(...elements: JSONPathElement[]): integer {
+    const value = this.getPath(elements)
+    if (Array.isArray(value)) {
+      return value.length
+    }
+    // < 0; Standard for loops over this will still work okay.
+    return -1
+  }
+
   asStr(...elements: JSONPathElement[]): string | null {
     const value = this.getPath(elements)
     if (typeof value.value === 'string') {
@@ -96,6 +105,26 @@ export class JsonLookup {
     }
     return defaultValue
   }
+
+  asInt(...elements: JSONPathElement[]): integer | null {
+    const value = this.getPath(elements)
+    if (typeof value.value === 'number') {
+      return value.value | 0
+    }
+    return null
+  }
+
+  asNumber(...elements: JSONPathElement[]): number | null {
+    const value = this.getPath(elements)
+    if (typeof value.value === 'number') {
+      return value.value
+    }
+    if (typeof value.value === 'string') {
+      return parseFloat(value.value)
+    }
+    return null
+  }
+
 }
 
 

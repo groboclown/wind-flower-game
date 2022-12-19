@@ -1,17 +1,18 @@
 // Generate test game board data.
 import {
-	Tile,
-	BoardSize,
-  BoardPosition,
-	BoardRect,
-	GameBoardSegment,
-  getGameBoardSegmentKey,
-  EMPTY_TILE,
-} from '../../store'
+	ClientTile,
+	ClientGameBoardSegment,
+} from '../../gameboard-state'
 
 
+interface BoardSize {
+  width: number
+  height: number
+}
+
+/*
 export function createBoardRect(
-  segments: GameBoardSegment[],
+  segments: ClientGameBoardSegment[],
   segmentSize: BoardSize,
 ): BoardRect {
   let minX = 1000000000
@@ -20,8 +21,8 @@ export function createBoardRect(
   let maxY = -1000000000
 
   for (let i = 0; i < segments.length; i++) {
-    const segMinX = segments[i].position.x
-    const segMinY = segments[i].position.y
+    const segMinX = segments[i].x
+    const segMinY = segments[i].y
     const segMaxX = segMinX + segmentSize.width
     const segMaxY = segMinY + segmentSize.height
     minX = Math.min(segMinX, minX)
@@ -31,11 +32,12 @@ export function createBoardRect(
   }
   return { minX, minY, maxX, maxY }
 }
+*/
 
 
 export function createBlankBoard(
   size: BoardSize,
-): {[keys: string]: GameBoardSegment} {
+): {[keys: string]: ClientGameBoardSegment} {
   return createGameBoard(
     size,
     [
@@ -57,7 +59,7 @@ export function createBlankBoard(
 
 export function createAlternatingBoard(
   size: BoardSize,
-): {[keys: string]: GameBoardSegment} {
+): {[keys: string]: ClientGameBoardSegment} {
   return createGameBoard(
     size,
     [
@@ -80,7 +82,7 @@ export function createAlternatingBoard(
 export function createAlternatingTokenSegment(
   size: BoardSize,
   startIndex: number
-): (Tile | null)[] {
+): (ClientTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
@@ -97,7 +99,7 @@ export function createAlternatingTokenSegment(
 export function createAlternatingEmptyTokenSegment(
   size: BoardSize,
   startIndex: number
-): (Tile | null)[] {
+): (ClientTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
@@ -114,7 +116,7 @@ export function createAlternatingEmptyTokenSegment(
 export function createEmptyTokenSegment(
   size: BoardSize,
   startIndex: number
-): (Tile | null)[] {
+): (ClientTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
@@ -177,9 +179,9 @@ function calculateHeight(tokenIndex: number, tokenBoardSize: BoardSize, heightTy
 
 function createNullTokenSegment(
   size: BoardSize,
-): (Tile | null)[] {
+): (ClientTile | null)[] {
   const tokenSize = getTokenBoardSize(size)
-  const tokens = new Array<Tile | null>(tokenSize.width * tokenSize.height)
+  const tokens = new Array<ClientTile | null>(tokenSize.width * tokenSize.height)
   return tokens
 }
 
@@ -187,32 +189,31 @@ function createNullTokenSegment(
 // createGameBoard create a 3x3 game board, with a collection of 3x3 token grid.
 function createGameBoard(
   size: BoardSize,
-  tokens: (Tile | null)[][],
-): {[keys: string]: GameBoardSegment} {
+  tokens: (ClientTile | null)[][],
+): {[keys: string]: ClientGameBoardSegment} {
   if (tokens.length !== 9) {
     throw new Error(`Expected 9 token groups, found ${tokens.length}`)
   }
   return asMappedSegments([
-    hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y: -(size.height * 1.5) | 0}, tokens[0]),
-    hexTokensToSegment(size, {x: -(size.width * 0.5) | 0, y: -(size.height * 1.5) | 0}, tokens[1]),
-    hexTokensToSegment(size, {x:  (size.width * 0.5) | 0, y: -(size.height * 1.5) | 0}, tokens[2]),
+    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 1.5) | 0, tokens[0]),
+    hexTokensToSegment(size, -(size.width * 0.5) | 0, -(size.height * 1.5) | 0, tokens[1]),
+    hexTokensToSegment(size,  (size.width * 0.5) | 0, -(size.height * 1.5) | 0, tokens[2]),
 
-    hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y: -(size.height * 0.5) | 0}, tokens[3]),
-    hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y: -(size.height * 0.5) | 0}, tokens[4]),
-    hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y: -(size.height * 0.5) | 0}, tokens[5]),
+    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[3]),
+    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[4]),
+    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[5]),
 
-    hexTokensToSegment(size, {x: -(size.width * 1.5) | 0, y:  (size.height * 0.5) | 0}, tokens[6]),
-    hexTokensToSegment(size, {x: -(size.width * 0.5) | 0, y:  (size.height * 0.5) | 0}, tokens[7]),
-    hexTokensToSegment(size, {x:  (size.width * 0.5) | 0, y:  (size.height * 0.5) | 0}, tokens[8]),
+    hexTokensToSegment(size, -(size.width * 1.5) | 0,  (size.height * 0.5) | 0, tokens[6]),
+    hexTokensToSegment(size, -(size.width * 0.5) | 0,  (size.height * 0.5) | 0, tokens[7]),
+    hexTokensToSegment(size,  (size.width * 0.5) | 0,  (size.height * 0.5) | 0, tokens[8]),
   ])
 }
 
 
-function asMappedSegments(segments: GameBoardSegment[]) {
-  const ret: {[keys: string]: GameBoardSegment} = {}
+function asMappedSegments(segments: ClientGameBoardSegment[]) {
+  const ret: {[keys: string]: ClientGameBoardSegment} = {}
   segments.forEach((seg) => {
-    const key = getGameBoardSegmentKey(seg)
-    ret[key] = seg
+    ret[seg.segmentId] = seg
   })
   return ret
 }
@@ -232,77 +233,106 @@ function getTokenBoardSize(
   return { width: tokenWidth, height: tokenHeight | 0 }
 }
 
+export const EMPTY_TILE: ClientTile = {
+  tokenId: null,
+  category: null,
+  variation: 0,
+  height: -2,
+  parameters: {},
 
-const RED_TILE: Tile = {
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
+}
+
+
+const RED_TILE: ClientTile = {
   category: 'red',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const GREEN_TILE: Tile = {
+const GREEN_TILE: ClientTile = {
   category: 'green',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const BLUE_TILE: Tile = {
+const BLUE_TILE: ClientTile = {
   category: 'blue',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const YELLOW_TILE: Tile = {
+const YELLOW_TILE: ClientTile = {
   category: 'yellow',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const CYAN_TILE: Tile = {
+const CYAN_TILE: ClientTile = {
   category: 'cyan',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const MAGENTA_TILE: Tile = {
+const MAGENTA_TILE: ClientTile = {
   category: 'magenta',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const MOUNTAIN_TILE: Tile = {
+const MOUNTAIN_TILE: ClientTile = {
   category: 'mountain',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const WATER_TILE: Tile = {
+const WATER_TILE: ClientTile = {
   category: 'water',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
-const DESERT_TILE: Tile = {
+const DESERT_TILE: ClientTile = {
   category: 'desert',
   variation: 0,
   height: 0,
   tokenId: null,
   parameters: [],
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
 const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE, DESERT_TILE]
@@ -319,16 +349,16 @@ const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_
 //   A null token will be turned into an empty tile.
 function hexTokensToSegment(
   size: BoardSize,
-  position: BoardPosition,
-  tokens: (Tile | null)[],
-): GameBoardSegment {
+  x: number, y: number,
+  tokens: (ClientTile | null)[],
+): ClientGameBoardSegment {
   const tokenSize = getTokenBoardSize(size)
   const tokenWidth = tokenSize.width
   const tokenHeight = tokenSize.height
   if (tokenWidth *tokenHeight !== tokens.length) {
     throw new Error(`bad setup; token array must be ${tokenWidth} x ${tokenHeight}`)
   }
-  const tiles = Array<Tile>(size.width * size.height)
+  const tiles = Array<ClientTile>(size.width * size.height)
 
   // First, fill the out tiles with empty tiles.
   for (let i = 0; i < tiles.length; i++) {
@@ -359,6 +389,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
           // For debugging, the colors can change per triangle to
           //   ensure that they are positioned correctly on the screen.
@@ -368,6 +400,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
           tiles[tilePos + 2] = {
             category: token.category,
@@ -375,6 +409,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
           tiles[tilePos + size.width + 0] = {
             category: token.category,
@@ -382,6 +418,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
           tiles[tilePos + size.width + 1] = {
             category: token.category,
@@ -389,6 +427,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
           tiles[tilePos + size.width + 2] = {
             category: token.category,
@@ -396,6 +436,8 @@ function hexTokensToSegment(
             height: token.height,
             tokenId: token.tokenId,
             parameters: token.parameters,
+            hasAdjacentPlacedTile: false,
+            isPlayerPlaceableToken: false,
           }
         }
       }
@@ -406,7 +448,8 @@ function hexTokensToSegment(
 
   // console.log(`Final segment length: ${tiles.length}`)
   return {
-    position,
+    x, y,
     tiles,
+    segmentId: `${x},${y}`,
   }
 }

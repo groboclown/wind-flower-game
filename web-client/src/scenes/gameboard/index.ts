@@ -1,7 +1,7 @@
 // The Primary Game.  Viewing the Game Board.
 import { Scene3D, ExtendedObject3D } from '@enable3d/phaser-extension'
 import { THREE } from 'enable3d'
-import { Table3D, GridBoardUserData, createTableGrid, getGridBoardData } from './grid'
+import { Table3D, GridBoardUserData, createTableGrid, getGridBoardData } from './old-grid'
 import { createCameraInputControls } from './input'
 import { TextureHandler } from './texture-handler'
 import { getCachedTexture } from '../../lib/cache/texture'
@@ -14,16 +14,16 @@ import {
 import { GAMEBOARD_SCENE_NAME } from '../names'
 import {
   store,
-  Tile,
-  BoardSize,
-  // BoardRect,
-  GameBoardState,
   gameBoardTokenSelected,
   gameBoardTokenDeSelected,
   gameBoardTokenHoverOver,
 } from '../../store'
+import {
+  ClientGameBoard,
+  ClientTile,
+} from '../../gameboard-state'
 
-import { createAlternatingBoard } from './test-data'
+import { createAlternatingBoard, EMPTY_TILE } from './test-data'
 
 
 interface HexToken {
@@ -49,14 +49,14 @@ interface IntersectedTile {
 export default class GameBoardScene extends Scene3D {
   private table3d: Table3D | null
 	private controls: CameraInput | null
-  private raycaster: THREE.Raycaster
   private textureHandler: TextureHandler | null
+  private raycaster: THREE.Raycaster
 
   private hoverToken: HexToken
   private selectToken: HexToken
 
   // until we get something real.
-  private gameBoardState: GameBoardState
+  private gameBoardState: ClientGameBoard
   //  - token ID to the tile index; will need something better.
   private tokenTileMap: {[key: number]: number[]}
 
@@ -65,7 +65,6 @@ export default class GameBoardScene extends Scene3D {
     super({ key: GAMEBOARD_SCENE_NAME })
 		this.table3d = null
 		this.controls = null
-    this.raycaster = new THREE.Raycaster()
     this.textureHandler = null
 
     this.hoverToken = {
@@ -85,13 +84,30 @@ export default class GameBoardScene extends Scene3D {
     // TODO this should be loaded from the server.
     //   Nothing should modify the state data.
     //   This is hard-coded for now.
-    const boardSize: BoardSize = {width: 3 * 10, height: 2 * 10}
-    const boardSegments = createAlternatingBoard(boardSize)
+    // const boardSize: BoardSize =
+    const boardSegments = createAlternatingBoard({width: 3 * 10, height: 2 * 10})
 
     this.gameBoardState = {
-      size: {minX: 0, maxX: boardSize.width, minY: 0, maxY: boardSize.height},
+      segmentWidth: 3 * 10,
+      segmentHeight: 2 * 10,
+      parameterTypes: {},
       segments: boardSegments,
-      segmentSize: boardSize,
+      boardWidth: 0,
+      boardHeight: 0,
+      boardMinX: 0,
+      boardMaxX: 1000, // NOT RIGHT
+      boardMinY: 0,
+      boardMaxY: 1000, // NOT RIGHT
+
+      clientPlacedTile0: {...EMPTY_TILE},
+      clientPlacedTile1: {...EMPTY_TILE},
+      clientPlacedTile2: {...EMPTY_TILE},
+      clientPlacedTile3: {...EMPTY_TILE},
+      clientPlacedTile4: {...EMPTY_TILE},
+      clientPlacedTile5: {...EMPTY_TILE},
+      clientPlacedTokenX: 0,
+      clientPlacedTokenY: 0,
+      clientPlacedSegmentId: "",
     }
 
     const tileMap: {[key: number]: number[]} = {}
@@ -109,11 +125,18 @@ export default class GameBoardScene extends Scene3D {
       }
     })
     this.tokenTileMap = tileMap
+    this.raycaster = new THREE.Raycaster()
   }
 
 
   init() {
-    this.accessThirdDimension()
+    this.accessThirdDimension({
+      antialias: false,
+      renderer: new THREE.WebGL1Renderer({
+        antialias: false,
+        powerPreference: "high-performance",
+      })
+    })
   }
 
 
@@ -280,7 +303,7 @@ export default class GameBoardScene extends Scene3D {
             object: intersect.object as ExtendedObject3D,
             tokenId,
             tileIds: this.tokenTileMap[tokenId],
-            segmentKey: userData.segmentKey,
+            segmentKey: userData.segmentId,
           }
         }
       }
@@ -310,7 +333,7 @@ export default class GameBoardScene extends Scene3D {
       args: {
         segmentKey: string,
         vertexIndicies: number[],
-        tile: Tile, hexIndex: number,
+        tile: ClientTile, hexIndex: number,
       }
   ) {
     if (this.textureHandler && this.table3d) {

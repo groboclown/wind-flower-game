@@ -1,9 +1,10 @@
-// Manage the grid mesh.
+// Create the grid mesh.
 import { THREE, ExtendedMesh, ExtendedObject3D } from 'enable3d'
 import { TextureHandler } from './texture-handler'
 import { sortGameBoardSegments } from '../../lib/board-helper/sort'
 import {
-  GameBoardManager,
+  ClientGameBoard,
+  ClientGameBoardSegment,
   ClientTile,
 } from '../../gameboard-state'
 
@@ -13,241 +14,80 @@ export interface Table3D {
 }
 
 
-export interface IntersectedTokenTile {
-  // These are pointers to the tile itself.
-  tokenTile0: ClientTile | null
-  tokenTile1: ClientTile | null
-  tokenTile2: ClientTile | null
-  tokenTile3: ClientTile | null
-  tokenTile4: ClientTile | null
-  tokenTile5: ClientTile | null
-  tileId0: number
-  tileId1: number
-  tileId2: number
-  tileId3: number
-  tileId4: number
-  tileId5: number
-  segmentId: string // === "" for not intersected.
+export interface GridBoardUserData {
+  // Vertex index -> token position index
+  //   For each vertex in the geometry, its index is mapped to
+  //   the token ID of the original grid.
+  readonly vertexToTokenId: {[key: number]: number}
+
+  // index in the segment tile index -> vertex index
+  readonly tileIndexToVertexIndex: {[key: number]: number[]}
+
+  readonly segmentId: string
 }
 
 
-export interface TileMode {
-  hoverOver: boolean
-  selected: boolean
+interface SegmentSize {
+  width: number
+  height: number
 }
 
 
-// This data is stored one per tile in the grid.
-// It needs to be small and efficient.  However, it's created
-// just once per game.
-interface GridTileInfo {
-  segmentId: string
-  x: integer
-  y: integer
-  tileIndex: integer
-  vertexA: integer
-  vertexB: integer
-  vertexC: integer
+const EMPTY_TILE: ClientTile = {
+  tokenId: null,
+  category: null,
+  variation: 0,
+  height: -2,
+  parameters: {},
+
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
 }
 
 
-// Grid3d the 3d object generator and data handler for the grid.
-//
-// The lookup needs to maintain a way to find segment tiles based on
-// screen position, and find vertex positions based on tiles.
-//
-// The grid is a fixed size based on the visible radius.  As the user
-// moves, the triangles are swapped out.
-//
-// Because the tiles on the x/z plane are always going to remain the same relative
-// position (if they move, all 3 points on the triangle all move by the same value),
-// they can all be calculated up-front.  Only the y, u/v, and normal need recalculating.
-export class Grid3d {
-  // Information loaded outside this grid, and static for the life of the
-  //   grid.
-  private texture: THREE.Texture
-  private textureHandler: TextureHandler
-  private board: GameBoardManager
-
-  private visibleWidth: integer
-  private visibleHeight: integer
-
-
-  // Singleton data objects, reused during the calls.
-  // Keeping them allocated saves time by not needing to recreate them or free them.
-  private raycaster: THREE.Raycaster
-  private coords: { x: number, y: number }
-
-
-  // The grid stores 1 THREE object, which contains 0 or more segments.
-  private object: ExtendedObject3D | null
-  private geometry: THREE.BufferGeometry
-  private uv: Float32Array
-  private positions: Float32Array
-  private normals: Float32Array
-  private pA: THREE.Vector3
-	private pB: THREE.Vector3
-	private pC: THREE.Vector3
-  private cb: THREE.Vector3
-  private ab: THREE.Vector3
-
-
-  // The code needs to be able to translate from a tile in a segment to vertex information,
-  //   and back the other way.
-  private gridTiles: GridTileInfo[]
-  private vertexIndexToGridTileIndex: Uint32Array
-
-
-  constructor(
-    board: GameBoardManager,
-    texture: THREE.Texture,
-    textureHandler: TextureHandler,
-    visibleWidth: integer,
-    visibleHeight: integer,
-  ) {
-    this.board = board
-    this.texture = texture
-    this.textureHandler = textureHandler
-    this.visibleWidth = visibleWidth
-    this.visibleHeight = visibleHeight
-
-    const triangleCount = visibleWidth * visibleHeight
-
-    this.raycaster = new THREE.Raycaster()
-    this.geometry = new THREE.BufferGeometry()
-    this.object = null
-    this.coords = { x: 0, y: 0 }
-    this.normals = new Float32Array(3 * 3 * triangleCount)
-    this.uv = new Float32Array(2 * 3 * triangleCount)
-
-    this.pA = new THREE.Vector3()
-    this.pB = new THREE.Vector3()
-    this.pC = new THREE.Vector3()
-    this.cb = new THREE.Vector3()
-    this.ab = new THREE.Vector3()
-
-    // Construct the basic grid information.
-    this.positions = new Float32Array(3 * 3 * triangleCount)
-    this.gridTiles = new Array<GridTileInfo>(triangleCount)
-    this.vertexIndexToGridTileIndex = new Uint32Array(triangleCount)
-
-    for (let i = 0; i < triangleCount; i++) {
-
-    }
-  }
-
-
-  // getObjects Get the 3d object list to add to the scene.
-  getObjects(): ExtendedObject3D[] {
-    if (this.object === null) {
-      return []
-    }
-    return [this.object]
-  }
-
-
-  // getInersectedTile find the tile / token that the x/y is over.
-  //   Casts a ray from the camera through the x/y (range -1 to 1) of the screen
-  //   to find the first tile and its token id.  The structure is populated with
-  //   the intersection.
-  getIntersectedTile(camera: THREE.Camera, clientX: number, clientY: number, intersection: IntersectedTokenTile) {
-    if (this.object !== null) {
-      this.coords.x = clientX
-      this.coords.y = clientY
-      this.raycaster.setFromCamera(this.coords, camera)
-      const intersects = this.raycaster.intersectObject(this.object)
-      if (intersects.length > 0) {
-        const intersect = intersects[0]
-        const face = intersect.face
-        if (face) {
-          const tokenId = this.vertexToTokenId[face.a]
-          if (tokenId === undefined) {
-            intersection.tokenId = null
-            return
-          }
-          // console.debug(`(${x}, ${y}) intersected face ${face.a} -> token ${tokenId}`)
-          intersection.tokenId = tokenId
-          intersection.segmentKey = this.segmentKey
-
-          return {
-            object: intersect.object as ExtendedObject3D,
-            tokenId,
-            tileIds: this.tokenTileMap[tokenId],
-            segmentKey: userData.segmentKey,
-          }
-        }
-      }
-    }
-    intersection.tokenId = null
-  }
-
-
-  // updateTileTexture update the texture UV positions for the tile.
-  updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
-
-  }
-
-
-  // createInitialGrid Create the grid from scratch
-  createInitialGrid(
-    segmentSize: BoardSize,
-    segments: GameBoardSegment[],
-  ) {
-    // This allows us to make a nice and easy grid.
-  }
-
-
-  // Apply a small change to the grid.
-  updateGrid(segmentChanges: SegmentChange[]) {
-
-  }
-
-
-  // updateTarget the target moved, so the grid might need an update.
-  updateTarget(cameraTarget: THREE.Vector3) {
-
-  }
+export function getGridBoardData(table: Table3D, segmentId: string): GridBoardUserData {
+  return table.objects[segmentId].userData as GridBoardUserData
 }
 
 
 // createTableGrid construct a 3d model of the game board
 //   Each segment is made into its own object.
 export function createTableGrid(
-  gameBoard: GameBoardState,
+  gameBoard: ClientGameBoard,
   meshTexture: THREE.Texture,
   textureHandler: TextureHandler,
 ): Table3D {
 
   // Order the game boards into row / column, so that
   const rowColumns = sortGameBoardSegments(gameBoard.segments)
-  const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentSize)
+  const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentWidth, gameBoard.segmentHeight)
 
   const objects: {[keys: string]: ExtendedObject3D} = {}
   for (let rowIndex = 0; rowIndex < rowColumns.length; rowIndex++) {
     const columns = rowColumns[rowIndex]
     for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
       // Construct the 3x3 grid to pass to the segment constructor.
-      const segments: GameBoardSegment[] = []
+      const segments: ClientGameBoardSegment[] = []
       for (let rowDelta = -1; rowDelta <= 1; rowDelta++) {
         for (let columnDelta = -1; columnDelta <= 1; columnDelta++) {
           const row = rowIndex + rowDelta
           const col = columnIndex + columnDelta
           if (row < 0 || col < 0 || row >= rowColumns.length || col >= rowColumns[row].length) {
             segments.push({
+              segmentId: "",
               tiles: emptySegmentTiles,
               // position doesn't matter for the empty table.
-              position: {x: col, y: row},
+              x: col, y: row,
             })
           } else {
             segments.push(rowColumns[row][col])
           }
         }
       }
-      const key = getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX])
+      const key = segments[CENTER_SEGMENT_INDEX].segmentId
       objects[key] = createSegmentGrid(
         segments,
-        gameBoard.segmentSize,
-        gameBoard.size,
+        { width: gameBoard.segmentWidth, height: gameBoard.segmentHeight },
         meshTexture,
         textureHandler,
       )
@@ -260,10 +100,10 @@ export function createTableGrid(
 
 
 function cloneTileToBoardSegment(
-  tileTemplate: Tile, size: BoardSize,
-): Tile[] {
-  const count = size.width * size.height
-  const tiles: Tile[] = []
+  tileTemplate: ClientTile, width: number, height: number,
+): ClientTile[] {
+  const count = width * height
+  const tiles: ClientTile[] = []
   for (let i = 0; i < count; i++) {
     tiles.push({ ...tileTemplate })
   }
@@ -452,9 +292,8 @@ const BR_SEGMENT_INDEX = 8
 //      | 6 | 7 | 8 |
 //      +---+---+---+
 export function createSegmentGrid(
-  segments: GameBoardSegment[],
-  segmentSize: BoardSize,
-  boardDim: BoardRect,
+  segments: ClientGameBoardSegment[],
+  segmentSize: SegmentSize,
   meshTexture: THREE.Texture,
   textureHandler: TextureHandler,
 ): ExtendedObject3D {
@@ -485,12 +324,12 @@ export function createSegmentGrid(
 
   // We count horizontally by column to discover the even/odd
   //   position, but the "y" value is directly maintained.
-  const startX = (primary.position.x * SIDE_LENGTH_HALF) + ((boardDim.maxX + boardDim.minX) / 2)
+  const startX = (primary.x * SIDE_LENGTH_HALF)
   let column = 0
   let row = 0
   // x & z are the upper-left corner of the "square" containing the triangle.
   let x = startX
-  let z = (primary.position.y * BASE_LENGTH) + ((boardDim.maxY + boardDim.minY) / 2)
+  let z = primary.y * BASE_LENGTH
   let vIdx = 0
   let uvIdx = 0
   for (let tileI = 0; tileI < primary.tiles.length; tileI++) {
@@ -662,16 +501,14 @@ export function createSegmentGrid(
 
   geometry.computeBoundingSphere()
 
-  // MeshPhysicalMaterial
-  // MeshStandardMaterial - slowest/highest quality
+  // MeshStandardMaterial
   // MeshPhongMaterial
-  // MeshLambertMaterial
-  // MeshBasicMaterial - fastest/lowest quality
-  const material = new THREE.MeshBasicMaterial({
+  // MeshPhysicalMaterial
+  const material = new THREE.MeshStandardMaterial({
     map: meshTexture,
     // specular: 0xaaaaaa,
     // shininess: 250,
-    // metalness: 0.5,
+    metalness: 0.5,
     blending: 1,
     side: THREE.DoubleSide,
   })
@@ -683,7 +520,7 @@ export function createSegmentGrid(
   object.userData = {
     vertexToTokenId,
     tileIndexToVertexIndex,
-    segmentKey: getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX]),
+    segmentId: segments[CENTER_SEGMENT_INDEX].segmentId,
   } as GridBoardUserData
   return object
 }
@@ -691,9 +528,9 @@ export function createSegmentGrid(
 
 // createHeightMap map the heights in the current segment + a 1 tile buffer around it.
 function createHeightMap(
-  segments: GameBoardSegment[],
-  segmentSize: BoardSize,
-): Tile[] {
+  segments: ClientGameBoardSegment[],
+  segmentSize: SegmentSize,
+): ClientTile[] {
   // There are 2 coordinate systems we have to navigate between: the height map and the segment.
   const segmentWidth = segmentSize.width
   const segmentHeight = segmentSize.height
@@ -709,7 +546,7 @@ function createHeightMap(
   const mapLastRowFirstColumnIndex = (mapHeight - 1) * mapWidth
   const mapLastRowLastColumnIndex = (mapWidth * mapHeight) - 1
 
-  const ret = new Array<Tile>(mapWidth * mapHeight)
+  const ret = new Array<ClientTile>(mapWidth * mapHeight)
 
   // Fill in the 4 corners
   ret[mapFirstRowFirstColumnIndex] = segments[UL_SEGMENT_INDEX].tiles[segmentLastRowLastColumnIndex]
