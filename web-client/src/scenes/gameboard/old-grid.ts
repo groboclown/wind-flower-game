@@ -1,7 +1,7 @@
 // Create the grid mesh.
 import { THREE, ExtendedMesh, ExtendedObject3D } from 'enable3d'
 import { TextureHandler } from './texture-handler'
-import { sortGameBoardSegments } from '../../lib/board-helper/sort'
+import { sortGameBoardSegmentMap } from '../../gameboard-state/sort'
 import {
   ClientGameBoard,
   ClientGameBoardSegment,
@@ -59,7 +59,7 @@ export function createTableGrid(
 ): Table3D {
 
   // Order the game boards into row / column, so that
-  const rowColumns = sortGameBoardSegments(gameBoard.segments)
+  const rowColumns = sortGameBoardSegmentMap(gameBoard.segments)
   const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentWidth, gameBoard.segmentHeight)
 
   const objects: {[keys: string]: ExtendedObject3D} = {}

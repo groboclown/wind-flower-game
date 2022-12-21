@@ -3,8 +3,17 @@
 import { ClientGameBoard, ClientTile } from './state'
 
 
+export const SEGMENT_ZERO_X = 0
+export const SEGMENT_ZERO_Y = 0
+
+
 // GameBoardRequests calls into the gameboard state
 export interface GameBoardRequests {
+  // getSegmentId the the segment ID for the given tile coordinate
+  //   The segment ID returned is for the segment which covers the
+  //   coordinate pair.
+  getSegmentId(x: integer, y: integer): string
+
   requestSegment(x: integer, y: integer, segmentId: string): void
   markSegmentNotVisible(segmentId: string): void
 

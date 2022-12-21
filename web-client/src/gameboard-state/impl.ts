@@ -18,6 +18,12 @@ const EMPTY_TILE: ClientTile = {
 }
 
 
+function getAbsSegmentId(x: integer, y: integer): string {
+  return `${x},${y}`
+}
+
+
+
 export class GameBoardManagerImpl implements GameBoardManager {
   private gameId: string
   board: ClientGameBoard
@@ -98,6 +104,28 @@ class CallbackRequest implements GameBoardRequests {
     this.parent = null
   }
 
+  getSegmentId(x: integer, y: integer): string {
+    if (this.parent === null) {
+      throw new Error('Handler deactivated')
+    }
+    // get an absolute position of the coordinate, so that it's a whole
+    // board segment number.  By modulating the segment size, it makes
+    // the value the remainder, so subtracting that means we're left with
+    // a whole board position.  e.g. board size of 10, value 22: 22 % 10 = 2,
+    // 22 - 2 = 20, which is a whole board size.
+    x = x - (x % this.parent.board.segmentWidth)
+    y = y - (y % this.parent.board.segmentHeight)
+    return getAbsSegmentId(x, y)
+  }
+
+  // Should be considered a read-only view on the board.
+  getGameBoard(): ClientGameBoard {
+    if (this.parent === null) {
+      throw new Error('Handler deactivated')
+    }
+    return this.parent.board
+  }
+
   requestSegment(x: number, y: number, segmentIndex: string): void {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
@@ -110,14 +138,6 @@ class CallbackRequest implements GameBoardRequests {
       throw new Error('Handler deactivated')
     }
     // TODO FIXME
-  }
-
-  // Should be considered a read-only view on the board.
-  getGameBoard(): ClientGameBoard {
-    if (this.parent === null) {
-      throw new Error('Handler deactivated')
-    }
-    return this.parent.board
   }
 
   // Mark the game board token as in-flight.

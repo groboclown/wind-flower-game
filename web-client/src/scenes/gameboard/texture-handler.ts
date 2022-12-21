@@ -1,12 +1,14 @@
 // Handle mapping the tile to the texture.
 
-import { Tile } from '../../store'
+import { ClientTile } from '../../gameboard-state'
 import { JSONValueType } from "../../lib/typed-json"
+
 
 interface HexUV {
   // for each of the 6 tiles in the hexagon, the 3 verticies' (u, v) pair
   uv: number[][][]
 }
+
 
 interface CategoryTexture {
   normal: HexUV[],
@@ -15,12 +17,15 @@ interface CategoryTexture {
   hoverSelect: HexUV[],
 }
 
+
 interface CategoryMap {
   [key: string]: CategoryTexture
 }
 
+
 // hard-coded asset name
 const UNKNOWN_CATEGORY = 'unknown'
+
 
 interface JsonCategoryVariation {
   normal: number[][][]
@@ -29,10 +34,12 @@ interface JsonCategoryVariation {
   hover_select: number[][][]
 }
 
+
 interface ModeLookup {
   jsonKey: keyof JsonCategoryVariation
   catKey: keyof CategoryTexture
 }
+
 
 const MODES: ModeLookup[] = [
   {jsonKey: "normal", catKey: "normal"},
@@ -44,6 +51,7 @@ const MODES: ModeLookup[] = [
 
 export class TextureHandler {
   private categories: CategoryMap
+
 
   constructor(uvMap: JSONValueType) {
     const self = this
@@ -106,8 +114,9 @@ export class TextureHandler {
     console.log(`Loaded texture categories ${Object.keys(this.categories)}`)
   }
 
+
   // getTileUVMap get the 3 vertex UV pair for the tile.
-  getTileUVMap(tile: Tile, hexIndex: number, hover: boolean, select: boolean): number[][] {
+  getTileUVMap(tile: ClientTile, hexIndex: number, hover: boolean, select: boolean): number[][] {
     const cat = tile.category || UNKNOWN_CATEGORY
     const map = this.categories[cat] || this.categories[UNKNOWN_CATEGORY]
     if (map === undefined) {

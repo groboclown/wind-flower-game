@@ -1,16 +1,25 @@
 // Utilities for sorting the game board
-import { ClientGameBoardSegment } from '../../gameboard-state'
+import { ClientGameBoardSegment } from '.'
 
 
 // sortGameBoardSegments sort the segments by row / column.
 //    Access by segments[rowIndex][columnIndex]
-export function sortGameBoardSegments(
+export function sortGameBoardSegmentMap(
   segments: {[keys: string]: ClientGameBoardSegment},
+): ClientGameBoardSegment[][] {
+  return sortGameBoardSegmentList(Object.values(segments))
+}
+
+
+// sortGameBoardSegments sort the segments by row / column.
+//    Access by segments[rowIndex][columnIndex]
+export function sortGameBoardSegmentList(
+  segments: ClientGameBoardSegment[],
 ): ClientGameBoardSegment[][] {
   const sorted: ClientGameBoardSegment[][] = []
 
   // First, sort by row.  Put them on rows.
-  const byRow = groupSegmentsBy(Object.values(segments), (s) => s.y)
+  const byRow = groupSegmentsBy(segments, (s) => s.y)
 
   // Then sort each column
   sortNumericKeys(byRow).forEach((columnKey) => {

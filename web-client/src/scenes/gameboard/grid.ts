@@ -1,10 +1,13 @@
 // Manage the grid mesh.
 import { THREE, ExtendedMesh, ExtendedObject3D } from 'enable3d'
 import { TextureHandler } from './texture-handler'
-import { sortGameBoardSegments } from '../../lib/board-helper/sort'
 import {
   GameBoardManager,
   ClientTile,
+  GameBoardRequests,
+  GameBoardStatusHandler,
+  ClientGameBoardSegment,
+  sortGameBoardSegmentList,
 } from '../../gameboard-state'
 
 
@@ -13,6 +16,12 @@ export interface Table3D {
 }
 
 
+export const EMPTY_SEGMENT_ID = ""
+
+
+// IntersectedTokenTile data holder to identify a ray cast to the game board interseting a token
+// Outside this file, users should consider this object to be obsure except for
+// the `segmentId` value, which will equal EMPTY_SEGMENT_ID if no token was intersected.
 export interface IntersectedTokenTile {
   // These are pointers to the tile itself.
   tokenTile0: ClientTile | null
@@ -27,7 +36,26 @@ export interface IntersectedTokenTile {
   tileId3: number
   tileId4: number
   tileId5: number
-  segmentId: string // === "" for not intersected.
+  segmentId: string // === EMPTY_SEGMENT_ID for not intersected.
+}
+
+
+export function createIntersectedTokenTile(): IntersectedTokenTile {
+  return {
+    tokenTile0: null,
+    tokenTile1: null,
+    tokenTile2: null,
+    tokenTile3: null,
+    tokenTile4: null,
+    tokenTile5: null,
+    tileId0: 0,
+    tileId1: 0,
+    tileId2: 0,
+    tileId3: 0,
+    tileId4: 0,
+    tileId5: 0,
+    segmentId: EMPTY_SEGMENT_ID,
+  }
 }
 
 
@@ -42,237 +70,14 @@ export interface TileMode {
 // just once per game.
 interface GridTileInfo {
   segmentId: string
-  x: integer
-  y: integer
+  x: integer  // absolute, in tiles
+  y: integer  // absolute, in tiles
   tileIndex: integer
   vertexA: integer
   vertexB: integer
   vertexC: integer
 }
 
-
-// Grid3d the 3d object generator and data handler for the grid.
-//
-// The lookup needs to maintain a way to find segment tiles based on
-// screen position, and find vertex positions based on tiles.
-//
-// The grid is a fixed size based on the visible radius.  As the user
-// moves, the triangles are swapped out.
-//
-// Because the tiles on the x/z plane are always going to remain the same relative
-// position (if they move, all 3 points on the triangle all move by the same value),
-// they can all be calculated up-front.  Only the y, u/v, and normal need recalculating.
-export class Grid3d {
-  // Information loaded outside this grid, and static for the life of the
-  //   grid.
-  private texture: THREE.Texture
-  private textureHandler: TextureHandler
-  private board: GameBoardManager
-
-  private visibleWidth: integer
-  private visibleHeight: integer
-
-
-  // Singleton data objects, reused during the calls.
-  // Keeping them allocated saves time by not needing to recreate them or free them.
-  private raycaster: THREE.Raycaster
-  private coords: { x: number, y: number }
-
-
-  // The grid stores 1 THREE object, which contains 0 or more segments.
-  private object: ExtendedObject3D | null
-  private geometry: THREE.BufferGeometry
-  private uv: Float32Array
-  private positions: Float32Array
-  private normals: Float32Array
-  private pA: THREE.Vector3
-	private pB: THREE.Vector3
-	private pC: THREE.Vector3
-  private cb: THREE.Vector3
-  private ab: THREE.Vector3
-
-
-  // The code needs to be able to translate from a tile in a segment to vertex information,
-  //   and back the other way.
-  private gridTiles: GridTileInfo[]
-  private vertexIndexToGridTileIndex: Uint32Array
-
-
-  constructor(
-    board: GameBoardManager,
-    texture: THREE.Texture,
-    textureHandler: TextureHandler,
-    visibleWidth: integer,
-    visibleHeight: integer,
-  ) {
-    this.board = board
-    this.texture = texture
-    this.textureHandler = textureHandler
-    this.visibleWidth = visibleWidth
-    this.visibleHeight = visibleHeight
-
-    const triangleCount = visibleWidth * visibleHeight
-
-    this.raycaster = new THREE.Raycaster()
-    this.geometry = new THREE.BufferGeometry()
-    this.object = null
-    this.coords = { x: 0, y: 0 }
-    this.normals = new Float32Array(3 * 3 * triangleCount)
-    this.uv = new Float32Array(2 * 3 * triangleCount)
-
-    this.pA = new THREE.Vector3()
-    this.pB = new THREE.Vector3()
-    this.pC = new THREE.Vector3()
-    this.cb = new THREE.Vector3()
-    this.ab = new THREE.Vector3()
-
-    // Construct the basic grid information.
-    this.positions = new Float32Array(3 * 3 * triangleCount)
-    this.gridTiles = new Array<GridTileInfo>(triangleCount)
-    this.vertexIndexToGridTileIndex = new Uint32Array(triangleCount)
-
-    for (let i = 0; i < triangleCount; i++) {
-
-    }
-  }
-
-
-  // getObjects Get the 3d object list to add to the scene.
-  getObjects(): ExtendedObject3D[] {
-    if (this.object === null) {
-      return []
-    }
-    return [this.object]
-  }
-
-
-  // getInersectedTile find the tile / token that the x/y is over.
-  //   Casts a ray from the camera through the x/y (range -1 to 1) of the screen
-  //   to find the first tile and its token id.  The structure is populated with
-  //   the intersection.
-  getIntersectedTile(camera: THREE.Camera, clientX: number, clientY: number, intersection: IntersectedTokenTile) {
-    if (this.object !== null) {
-      this.coords.x = clientX
-      this.coords.y = clientY
-      this.raycaster.setFromCamera(this.coords, camera)
-      const intersects = this.raycaster.intersectObject(this.object)
-      if (intersects.length > 0) {
-        const intersect = intersects[0]
-        const face = intersect.face
-        if (face) {
-          const tokenId = this.vertexToTokenId[face.a]
-          if (tokenId === undefined) {
-            intersection.tokenId = null
-            return
-          }
-          // console.debug(`(${x}, ${y}) intersected face ${face.a} -> token ${tokenId}`)
-          intersection.tokenId = tokenId
-          intersection.segmentKey = this.segmentKey
-
-          return {
-            object: intersect.object as ExtendedObject3D,
-            tokenId,
-            tileIds: this.tokenTileMap[tokenId],
-            segmentKey: userData.segmentKey,
-          }
-        }
-      }
-    }
-    intersection.tokenId = null
-  }
-
-
-  // updateTileTexture update the texture UV positions for the tile.
-  updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
-
-  }
-
-
-  // createInitialGrid Create the grid from scratch
-  createInitialGrid(
-    segmentSize: BoardSize,
-    segments: GameBoardSegment[],
-  ) {
-    // This allows us to make a nice and easy grid.
-  }
-
-
-  // Apply a small change to the grid.
-  updateGrid(segmentChanges: SegmentChange[]) {
-
-  }
-
-
-  // updateTarget the target moved, so the grid might need an update.
-  updateTarget(cameraTarget: THREE.Vector3) {
-
-  }
-}
-
-
-// createTableGrid construct a 3d model of the game board
-//   Each segment is made into its own object.
-export function createTableGrid(
-  gameBoard: GameBoardState,
-  meshTexture: THREE.Texture,
-  textureHandler: TextureHandler,
-): Table3D {
-
-  // Order the game boards into row / column, so that
-  const rowColumns = sortGameBoardSegments(gameBoard.segments)
-  const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentSize)
-
-  const objects: {[keys: string]: ExtendedObject3D} = {}
-  for (let rowIndex = 0; rowIndex < rowColumns.length; rowIndex++) {
-    const columns = rowColumns[rowIndex]
-    for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
-      // Construct the 3x3 grid to pass to the segment constructor.
-      const segments: GameBoardSegment[] = []
-      for (let rowDelta = -1; rowDelta <= 1; rowDelta++) {
-        for (let columnDelta = -1; columnDelta <= 1; columnDelta++) {
-          const row = rowIndex + rowDelta
-          const col = columnIndex + columnDelta
-          if (row < 0 || col < 0 || row >= rowColumns.length || col >= rowColumns[row].length) {
-            segments.push({
-              tiles: emptySegmentTiles,
-              // position doesn't matter for the empty table.
-              position: {x: col, y: row},
-            })
-          } else {
-            segments.push(rowColumns[row][col])
-          }
-        }
-      }
-      const key = getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX])
-      objects[key] = createSegmentGrid(
-        segments,
-        gameBoard.segmentSize,
-        gameBoard.size,
-        meshTexture,
-        textureHandler,
-      )
-    }
-  }
-  return {
-    objects,
-  }
-}
-
-
-function cloneTileToBoardSegment(
-  tileTemplate: Tile, size: BoardSize,
-): Tile[] {
-  const count = size.width * size.height
-  const tiles: Tile[] = []
-  for (let i = 0; i < count; i++) {
-    tiles.push({ ...tileTemplate })
-  }
-  return tiles
-}
-
-
-// TODO look at adding an index, as each point is
-// shared with up to 6 triangles.
 
 
 // Each tile in each segment is an equalateral triangle.
@@ -370,6 +175,539 @@ const SIDE_LENGTH_HALF = SIDE_LENGTH / 2
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3)
 const HEIGHT_SCALE = 0.2
 const EMPTY_TILE_HEIGHT = -5
+
+
+
+// Grid3d the 3d object generator and data handler for the grid.
+//
+// The lookup needs to maintain a way to find segment tiles based on
+// screen position, and find vertex positions based on tiles.
+//
+// The grid is a fixed size based on the visible radius.  As the user
+// moves, the triangles are swapped out.
+//
+// Because the tiles on the x/z plane are always going to remain the same relative
+// position (if they move, all 3 points on the triangle all move by the same value),
+// they can all be calculated up-front.  Only the y, u/v, and normal need recalculating.
+export class Grid3d {
+  // Information loaded outside this grid, and static for the life of the
+  //   grid.
+  private texture: THREE.Texture
+  private textureHandler: TextureHandler
+  private board: GameBoardRequests
+  private boardManager: GameBoardManager
+  private boardHandler: GameBoardStatusHandler
+
+  private visibleWidth: integer
+  private visibleHeight: integer
+
+
+  // Singleton data objects, reused during the calls.
+  // Keeping them allocated saves time by not needing to recreate them or free them.
+  private raycaster: THREE.Raycaster
+  private coords: { x: number, y: number }
+
+  // The grid stores 1 THREE object, which contains 0 or more segments.
+  private object: ExtendedObject3D | null
+  private geometry: THREE.BufferGeometry
+  private boundingBox: THREE.Box3
+  private pA: THREE.Vector3
+	private pB: THREE.Vector3
+	private pC: THREE.Vector3
+  private cb: THREE.Vector3
+  private ab: THREE.Vector3
+
+  // Where the camera is looking at, based on a tile position.
+  private targetTilePositionColumn: integer
+  private targetTilePositionRow: integer
+
+
+  // The code needs to be able to translate from a tile in a segment to vertex information,
+  //   and back the other way.
+  private gridTiles: GridTileInfo[]
+  private vertexIndexToGridTileIndex: Uint32Array
+
+
+  constructor(
+    boardManager: GameBoardManager,
+    texture: THREE.Texture,
+    textureHandler: TextureHandler,
+    visibleWidth: integer,   // in tiles, not tokens
+    visibleHeight: integer,  // in tiles, not tokens
+
+    // initial tile the client looks at
+    //   Note: the server tells the client where the player's starting
+    //   position is based on tile position.
+    targetTilePositionColumn: integer,
+    targetTilePositionRow: integer,
+  ) {
+    // -----------------------------
+    // Argument Value Adjustments
+    // Need to ensure that height wise we always show at least 2
+    // full tokens, for one above and one below.  This makes target adjustment
+    // easier by moving a complete token along the z axis.
+    visibleHeight = (visibleHeight >> 2) * 4
+    // Width wise, we want to have it be at least 2 complete tokens
+    // so that the segment loading and the token adjustment is easier.
+    visibleWidth = (visibleWidth >> 2) * 4
+
+    // Make sure the target points at the start of a token.
+    targetTilePositionColumn = targetTilePositionColumn - (targetTilePositionColumn % 3)
+    targetTilePositionRow = (targetTilePositionRow >> 1) * 2
+    if (targetTilePositionColumn % 6 >= 3) {
+      // Odd column, so row is offset.
+      targetTilePositionRow++
+    }
+
+    const triangleCount = visibleWidth * visibleHeight
+
+
+    // -----------------------------
+    // Property Initialization
+    const self = this
+
+    this.boardManager = boardManager
+    this.boardHandler = {
+      onSegmentLoaded: (x: integer, y: integer, segmentId: string) => {
+        self.onGameBoardSegmentLoaded(x, y, segmentId)
+      },
+      onSegmentUpdated: (x: integer, y: integer, segmentId: string, tileIndicies: integer[]) => {
+        self.onGameBoardSegmentUpdated(x, y, segmentId, tileIndicies)
+      },
+      onSegmentRemoved: (x: integer, y: integer, segmentId: string) => {
+        self.onGameBoardSegmentRemoved(x, y, segmentId)
+      },
+    }
+    this.board = boardManager.registerHandler(this.boardHandler)
+
+    this.targetTilePositionColumn = targetTilePositionColumn
+    this.targetTilePositionRow = targetTilePositionRow
+
+    this.texture = texture
+    this.textureHandler = textureHandler
+    this.visibleWidth = visibleWidth
+    this.visibleHeight = visibleHeight
+
+    this.raycaster = new THREE.Raycaster()
+    this.coords = { x: 0, y: 0 }
+
+    this.pA = new THREE.Vector3()
+    this.pB = new THREE.Vector3()
+    this.pC = new THREE.Vector3()
+    this.cb = new THREE.Vector3()
+    this.ab = new THREE.Vector3()
+
+    // Construct the basic grid information.
+    this.gridTiles = new Array<GridTileInfo>(triangleCount)
+    this.vertexIndexToGridTileIndex = new Uint32Array(3 * triangleCount)
+
+    // ----------------------------------------
+    // Basic planar position (x/z values)
+    const normals = new Float32Array(3 * 3 * triangleCount)
+    const uv = new Float32Array(2 * 3 * triangleCount)
+    const positions = new Float32Array(3 * 3 * triangleCount)
+
+    //   The starting x/z is based on maintaining the target view in the
+    //   center of the grid.
+    let column = targetTilePositionColumn - (visibleWidth >> 1)
+    let row = targetTilePositionRow - (visibleHeight >> 1)
+    //   The triangles along the columns in a single row overlap each other, so
+    //   that 2 triangles create 1 full side length from start of one to
+    //   start of next.
+    let x = column * SIDE_LENGTH_HALF
+    //   But the row distance extends along the base.
+    let z = row * BASE_LENGTH
+    let tileIndex = 0
+    let vertex = 0
+    let vIdx = 0
+    let uvIdx = 0
+    while (tileIndex < triangleCount) {
+      const crOdd = (column + row) & 0x1
+
+      this.gridTiles[tileIndex] = {
+        segmentId: EMPTY_SEGMENT_ID,
+        x: column,
+        y: row,
+        tileIndex,
+        vertexA: vertex,
+        vertexB: vertex + 1,
+        vertexC: vertex + 2,
+      }
+      this.vertexIndexToGridTileIndex[vertex    ] = tileIndex
+      this.vertexIndexToGridTileIndex[vertex + 1] = tileIndex
+      this.vertexIndexToGridTileIndex[vertex + 2] = tileIndex
+
+      // -------------------------------------
+      // 2D (x-z) Location Calculation
+      // Points A, B, C:
+      //      + A
+      //     / \
+      //  B +---+ C
+      // To flip the z coordinate, it's (z + (crOdd * BASE_LENGTH)) or (z + ((1 - hyOdd) * BASE_LENGTH))
+      const ax = x + SIDE_LENGTH_HALF
+      const az = z + (crOdd * BASE_LENGTH)
+      let bx = x
+      let bz = z + ((1 - crOdd) * BASE_LENGTH)
+      let cx = x + SIDE_LENGTH
+      let cz = bz
+
+      if (crOdd !== 0) {
+        // Need to swap the b & c to accomodate the right-hand rule
+        // to make the normals all point in the right direction
+        const tmpx = bx
+        const tmpz = bz
+        bx = cx
+        bz = cz
+        cx = tmpx
+        cz = tmpz
+      }
+
+      // -------------------------------
+      // Update the mesh values
+      // Height (y) will be computed separately.
+
+      positions[vIdx    ] = ax
+      positions[vIdx + 1] = 0
+      positions[vIdx + 2] = az
+
+      positions[vIdx + 3] = bx
+      positions[vIdx + 4] = 0
+      positions[vIdx + 5] = bz
+
+      positions[vIdx + 6] = cx
+      positions[vIdx + 7] = 0
+      positions[vIdx + 8] = cz
+
+      // Because height is computed separately,
+      // the normals can't be computed yet.
+
+      normals[vIdx    ] = 0
+      normals[vIdx + 1] = 0
+      normals[vIdx + 2] = 0
+
+      normals[vIdx + 3] = 0
+      normals[vIdx + 4] = 0
+      normals[vIdx + 5] = 0
+
+      normals[vIdx + 6] = 0
+      normals[vIdx + 7] = 0
+      normals[vIdx + 8] = 0
+
+      // And the uv needs a tile to know where to
+      // point the texture.
+
+      uv[uvIdx    ] = 0
+      uv[uvIdx + 1] = 0
+
+      uv[uvIdx + 2] = 0
+      uv[uvIdx + 3] = 0
+
+      uv[uvIdx + 4] = 0
+      uv[uvIdx + 5] = 0
+
+      // ------------------------------
+      // End-of-loop increment.
+      vertex += 3
+      vIdx += 3 * 3
+      uvIdx += 2 * 3
+      tileIndex++
+      column++
+      if (column >= visibleWidth) {
+        column = 0
+        row++
+      }
+    }
+
+    // ---------------------------------
+    // Basic object construction.
+
+    this.geometry = new THREE.BufferGeometry()
+    const positionAttrib = new THREE.BufferAttribute(positions, 3)
+    positionAttrib.setUsage(THREE.DynamicDrawUsage)
+    this.geometry.setAttribute('position', positionAttrib)
+    const normalAttrib = new THREE.BufferAttribute(normals, 3)
+    normalAttrib.setUsage(THREE.DynamicDrawUsage)
+    this.geometry.setAttribute('normal', normalAttrib)
+    const uvAttrib = new THREE.Float32BufferAttribute(uv, 2)
+    uvAttrib.setUsage(THREE.DynamicDrawUsage)
+    this.geometry.setAttribute('uv', uvAttrib)
+    this.geometry.computeBoundingBox()
+    const box = this.geometry.boundingBox
+    if (box === null) {
+      throw new Error('bounding box not created')
+    }
+    this.boundingBox = box
+
+    // MeshPhysicalMaterial
+    // MeshStandardMaterial - slowest/highest quality
+    // MeshPhongMaterial
+    // MeshLambertMaterial
+    // MeshBasicMaterial - fastest/lowest quality
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      // specular: 0xaaaaaa,
+      // shininess: 250,
+      // metalness: 0.5,
+      blending: 1,
+      side: THREE.DoubleSide,
+    })
+
+    const mesh = new ExtendedMesh(this.geometry, material)
+    this.object = new ExtendedObject3D()
+    this.object.add(mesh)
+  }
+
+
+  // dispose close this object.
+  dispose() {
+    this.boardManager.removeHandler(this.boardHandler)
+
+    this.object?.removeFromParent()
+    this.geometry.dispose()
+    this.object = null
+  }
+
+
+  // getObjects Get the 3d object list to add to the scene.
+  getObjects(): ExtendedObject3D[] {
+    if (this.object === null) {
+      return []
+    }
+    return [this.object]
+  }
+
+
+  // updateTileTexture update the texture UV positions for the tile.
+  updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
+    if (
+        intersection.tokenTile0 === null
+        || intersection.tokenTile1 === null
+        || intersection.tokenTile2 === null
+        || intersection.tokenTile3 === null
+        || intersection.tokenTile4 === null
+        || intersection.tokenTile5 === null) {
+      return
+    }
+
+    const uv = this.geometry.getAttribute('uv') as THREE.BufferAttribute
+    let uvMap: number[][]
+    let gt: GridTileInfo
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId0]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1, 1, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId1]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2, 2, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId2]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3, 3, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId3]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4, 4, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId4]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5, 5, mode.hoverOver, mode.selected)
+    gt = this.gridTiles[intersection.tileId5]
+    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+  }
+
+
+  // getTargetAtTile populate the target value with the x/z position of the tile
+  // The column/row is the absolute position, independent of segments.
+  // The height is set to 0, not the height of the tile (which may not be loaded yet).
+  populateTargetAtTile(column: integer, row: integer, target: THREE.Vector3) {
+    // Target 0,0 points at the center of the zero token, which is 1 whole side length long and
+    // one base length below the top of the tile at 0,0.
+    target.set(
+      // Column triangles overlap.  Because this is the center of the triangle,
+      //   the height doesn't need to take even/odd position into account.
+      (column * SIDE_LENGTH_HALF) + SIDE_LENGTH,
+      0,  // Ignore height
+      // Rows do not overlap.  Likewise, they don't need to take the token
+      //   row offset into account, because this is tile based in the call.
+      (row * BASE_LENGTH) - BASE_LENGTH,
+    )
+  }
+
+
+  // updateTarget the target moved, so the grid might need an update.
+  updateGridAtTarget(cameraTarget: THREE.Vector3) {
+    if (this.object === null) {
+      return
+    }
+    if (this.boundingBox.containsPoint(cameraTarget)) {
+      // This means it's an incremental adjustment.
+      // FIXME COMPLETE
+      //   1. perform a reverse mapping of populateTargetAtTile to find new target position
+      //   2. pass this as a delta to the moveGridByTiles.
+
+      // TODO this should probably be, if < 1/2 of all tiles needs update, then
+      //   perform the incremental update.  That means the bounding box isn't necessary to
+      //   check for containsPoint, and thus means we don't need to maintain it in this
+      //   class.
+    } else {
+      // Update the entire grid
+      this.updateGrid(cameraTarget)
+    }
+  }
+
+
+  // updateGrid update the entire grid around the center point
+  // Reconstructs the data.  As for the target, only the x/z
+  // position matters.
+  private updateGrid(cameraTarget: THREE.Vector3) {
+
+  }
+
+
+  // moveGrid change some triangles to render a different part of the segments.
+  private moveGridByTiles(deltaColumn: integer, deltaRow: integer) {
+
+  }
+
+
+  // getInersectedTile find the tile / token that the x/y is over.
+  //   Casts a ray from the camera through the x/y (range -1 to 1) of the screen
+  //   to find the first tile and its token id.  The structure is populated with
+  //   the intersection.
+  getIntersectedTile(camera: THREE.Camera, clientX: number, clientY: number, intersection: IntersectedTokenTile) {
+    if (this.object !== null) {
+      this.coords.x = clientX
+      this.coords.y = clientY
+      this.raycaster.setFromCamera(this.coords, camera)
+      const intersects = this.raycaster.intersectObject(this.object)
+      if (intersects.length > 0) {
+        const intersect = intersects[0]
+        const face = intersect.face
+        if (face) {
+          const tokenId = this.vertexToTokenId[face.a]
+          if (tokenId === undefined) {
+            intersection.tokenId = null
+            return
+          }
+          // console.debug(`(${x}, ${y}) intersected face ${face.a} -> token ${tokenId}`)
+          intersection.tokenId = tokenId
+          intersection.segmentKey = this.segmentKey
+
+          return {
+            object: intersect.object as ExtendedObject3D,
+            tokenId,
+            tileIds: this.tokenTileMap[tokenId],
+            segmentKey: userData.segmentKey,
+          }
+        }
+      }
+    }
+    intersection.tokenId = null
+  }
+
+
+  // onSegmentLoaded A whole game board segment completed loading from the server.
+  private onGameBoardSegmentLoaded(x: integer, y: integer, segmentId: string): void {
+
+  }
+
+  // onSegmentUpdated One or more tile in a game board segment was updated from the server.
+  private onGameBoardSegmentUpdated(x: integer, y: integer, segmentId: string, tileIndicies: integer[]): void {
+
+  }
+
+  // onSegmentRemoved the game board has chosen to remove this segment from memory.
+  // Anything holding onto data related to this segment should be removed.
+  // This will only be called if:
+  //    * markSegmentNotVisible called for this segment.
+  //    * no onSegmentLoaded or onSegmentUpdated called after markSegmentNotVisible and before this
+  //      event call made.
+  private onGameBoardSegmentRemoved(x: integer, y: integer, segmentId: string): void {
+
+  }
+
+}
+
+
+// createTableGrid construct a 3d model of the game board
+//   Each segment is made into its own object.
+export function createTableGrid(
+  gameBoard: GameBoardState,
+  meshTexture: THREE.Texture,
+  textureHandler: TextureHandler,
+): Table3D {
+
+  // Order the game boards into row / column, so that
+  const rowColumns = sortGameBoardSegments(gameBoard.segments)
+  const emptySegmentTiles = cloneTileToBoardSegment(EMPTY_TILE, gameBoard.segmentSize)
+
+  const objects: {[keys: string]: ExtendedObject3D} = {}
+  for (let rowIndex = 0; rowIndex < rowColumns.length; rowIndex++) {
+    const columns = rowColumns[rowIndex]
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
+      // Construct the 3x3 grid to pass to the segment constructor.
+      const segments: GameBoardSegment[] = []
+      for (let rowDelta = -1; rowDelta <= 1; rowDelta++) {
+        for (let columnDelta = -1; columnDelta <= 1; columnDelta++) {
+          const row = rowIndex + rowDelta
+          const col = columnIndex + columnDelta
+          if (row < 0 || col < 0 || row >= rowColumns.length || col >= rowColumns[row].length) {
+            segments.push({
+              tiles: emptySegmentTiles,
+              // position doesn't matter for the empty table.
+              position: {x: col, y: row},
+            })
+          } else {
+            segments.push(rowColumns[row][col])
+          }
+        }
+      }
+      const key = getGameBoardSegmentKey(segments[CENTER_SEGMENT_INDEX])
+      objects[key] = createSegmentGrid(
+        segments,
+        gameBoard.segmentSize,
+        gameBoard.size,
+        meshTexture,
+        textureHandler,
+      )
+    }
+  }
+  return {
+    objects,
+  }
+}
+
+
+function cloneTileToBoardSegment(
+  tileTemplate: Tile, size: BoardSize,
+): Tile[] {
+  const count = size.width * size.height
+  const tiles: Tile[] = []
+  for (let i = 0; i < count; i++) {
+    tiles.push({ ...tileTemplate })
+  }
+  return tiles
+}
+
+
+// TODO look at adding an index, as each point is
+// shared with up to 6 triangles.
+
 
 // For each triangle in the hexagon, the height on each point
 // is the average of the height of adjacent triangles.  This
