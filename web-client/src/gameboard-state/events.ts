@@ -14,6 +14,10 @@ export interface GameBoardRequests {
   //   coordinate pair.
   getSegmentId(x: integer, y: integer): string
 
+  // populateNormalizedSegmentPosition fill the "normalized" array with the row, column
+  // Normalizes the x,y to the column,row of the upper-left corner, used in segment id.
+  populateNormalizedSegmentPosition(x: integer, y: integer, normalized: integer[]): void
+
   requestSegment(x: integer, y: integer, segmentId: string): void
   markSegmentNotVisible(segmentId: string): void
 

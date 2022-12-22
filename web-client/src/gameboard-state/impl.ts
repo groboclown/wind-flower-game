@@ -104,6 +104,20 @@ class CallbackRequest implements GameBoardRequests {
     this.parent = null
   }
 
+  populateNormalizedSegmentPosition(x: integer, y: integer, normalized: integer[]): void {
+    if (this.parent === null) {
+      throw new Error('Handler deactivated')
+    }
+
+    // get an absolute position of the coordinate, so that it's a whole
+    // board segment number.  By modulating the segment size, it makes
+    // the value the remainder, so subtracting that means we're left with
+    // a whole board position.  e.g. board size of 10, value 22: 22 % 10 = 2,
+    // 22 - 2 = 20, which is a whole board size.
+    normalized[0] = x - (x % this.parent.board.segmentWidth)
+    normalized[1] = y - (y % this.parent.board.segmentHeight)
+  }
+
   getSegmentId(x: integer, y: integer): string {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
