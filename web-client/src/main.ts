@@ -4,6 +4,8 @@ import BootScene from './scenes/boot'
 import PreloadScene from './scenes/preload'
 import GameBoardScene from './scenes/gameboard'
 import HudScene from './scenes/hud'
+import MainMenuScene from './scenes/mainmenu'
+import GameLoadScene from './scenes/gameload'
 import { getAmmoLibraryRef } from './assets'
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -18,7 +20,8 @@ const config: Phaser.Types.Core.GameConfig = {
   // Order is incredibly important
   scene: [
     BootScene, PreloadScene,
-    // MainMenuScene,
+    MainMenuScene,
+    GameLoadScene,
     GameBoardScene, HudScene,
   ],
   ...Canvas()

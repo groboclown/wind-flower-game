@@ -1,8 +1,6 @@
 // Information about the game turn state.  Both historic and current.
 // This data is sent by the server to the client.
 
-import { BoardPosition } from './board'
-
 
 // A token drawn from the server.
 export interface Token {
@@ -18,7 +16,8 @@ export interface Token {
 export interface Action {
   // The player can play one tile at one location on their turn.
   token: Token
-  position: BoardPosition
+  // The tile location of the placed token
+  position: {x: integer, y: integer}
 
   // Land tiles can be assigned a height
   height: number | null

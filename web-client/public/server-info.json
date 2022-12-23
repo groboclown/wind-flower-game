@@ -1,0 +1,13 @@
+{
+  "$comment": [
+    "Example of what should be in the server information file.",
+    "This is different for every server."
+  ],
+  "servers": [
+    {
+      "name": "Example Game Server",
+      "publicKeyBase64": "AAAAB3NzaAa=",
+      "restApiUrl": "https://my.example:9911/wind-flower-game/api"
+    }
+  ]
+}

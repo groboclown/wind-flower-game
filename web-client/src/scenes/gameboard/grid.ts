@@ -10,17 +10,12 @@ import {
 } from '../../gameboard-state'
 
 
-export interface Table3D {
-  readonly objects: {[keys: string]: ExtendedObject3D}
-}
-
-
 export const EMPTY_SEGMENT_ID = ""
 
 
 // IntersectedTokenTile data holder to identify a ray cast to the game board interseting a token
 // Outside this file, users should consider this object to be obsure except for
-// the `segmentId` value, which will equal EMPTY_SEGMENT_ID if no token was intersected.
+// the `tokenId` value, which will equal null if no token was intersected.
 export interface IntersectedTokenTile {
   // These are pointers to the tile itself.
   tokenTile0: ClientTile | null
@@ -29,13 +24,14 @@ export interface IntersectedTokenTile {
   tokenTile3: ClientTile | null
   tokenTile4: ClientTile | null
   tokenTile5: ClientTile | null
-  tileId0: number
-  tileId1: number
-  tileId2: number
-  tileId3: number
-  tileId4: number
-  tileId5: number
+  tileId0: integer
+  tileId1: integer
+  tileId2: integer
+  tileId3: integer
+  tileId4: integer
+  tileId5: integer
   segmentId: string // === EMPTY_SEGMENT_ID for not intersected.
+  tokenId: integer | null
 }
 
 
@@ -54,6 +50,7 @@ export function createIntersectedTokenTile(): IntersectedTokenTile {
     tileId4: 0,
     tileId5: 0,
     segmentId: EMPTY_SEGMENT_ID,
+    tokenId: null,
   }
 }
 
@@ -199,7 +196,6 @@ const UPDATE_GRID_RATIO = 0.8
 export class Grid3d {
   // Information loaded outside this grid, and static for the life of the
   //   grid.
-  private texture: THREE.Texture
   private textureHandler: TextureHandler
   private boardReq: GameBoardRequests
   private boardManager: GameBoardManager
@@ -301,7 +297,6 @@ export class Grid3d {
     this.targetTilePositionColumn = targetTilePositionColumn
     this.targetTilePositionRow = targetTilePositionRow
 
-    this.texture = texture
     this.textureHandler = textureHandler
     this.visibleWidth = visibleWidth
     this.visibleHeight = visibleHeight
@@ -495,14 +490,7 @@ export class Grid3d {
 
   // updateTileTexture update the texture UV positions for the tile.
   updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
-    if (
-        intersection.segmentId === EMPTY_SEGMENT_ID
-        || intersection.tokenTile0 === null
-        || intersection.tokenTile1 === null
-        || intersection.tokenTile2 === null
-        || intersection.tokenTile3 === null
-        || intersection.tokenTile4 === null
-        || intersection.tokenTile5 === null) {
+    if (intersection.tokenId === null) {
       return
     }
 
@@ -510,37 +498,37 @@ export class Grid3d {
     let uvMap: number[][]
     let gt: GridTileInfo
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0 as ClientTile, 0, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId0]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
     uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1, 1, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1 as ClientTile, 1, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId1]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
     uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2, 2, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2 as ClientTile, 2, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId2]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
     uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3, 3, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3 as ClientTile, 3, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId3]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
     uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4, 4, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4 as ClientTile, 4, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId4]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
     uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5, 5, mode.hoverOver, mode.selected)
+    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5 as ClientTile, 5, mode.hoverOver, mode.selected)
     gt = this.gridTiles[intersection.tileId5]
     uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
     uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
@@ -730,6 +718,7 @@ export class Grid3d {
   // updateGrid update the entire grid around the center point
   // Reconstructs the data.
   private updateGrid() {
+    console.log(`Updating entire grid`)
     this.segmentManager.startRedraw()
 
     // The grid lookup just is added to, regardless of the segment
@@ -782,7 +771,7 @@ export class Grid3d {
     let startCol = leftCol
     let startRow = topRow
 
-    while (startCol > rightCol && startRow > bottomRow) {
+    while (startCol < rightCol && startRow < bottomRow) {
       let segment = this.segmentManager.getSegment(startCol, startRow)
       seenSegments[segment.segmentId] = segment
 
@@ -797,8 +786,8 @@ export class Grid3d {
       let startRowTileIndex = (startCol - segment.x) + ((startRow - segment.y) * segWidth)
 
       // Draw to the end of the segment or the end of the screen, which ever is first.
-      const endCol = Math.min(rightCol, startCol + segWidth)
-      const endRow = Math.min(bottomRow, startRow + segHeight)
+      const endCol = Math.min(rightCol, segment.x + segWidth)
+      const endRow = Math.min(bottomRow, segment.y + segHeight)
       for (let row = startRow; row < endRow; row++) {
         let tileColLookup = this.tilePosGridTileIndex[row]
         if (tileColLookup === undefined) {
@@ -869,6 +858,9 @@ export class Grid3d {
             hexIndex = (col % 3) + ((row % 2) * 3)
           } else {
             hexIndex = (col % 3) + (((row + 1) % 2) * 3)
+          }
+          if (hexIndex < 0) {
+            hexIndex += 6
           }
 
           const height = tile.height * HEIGHT_SCALE
@@ -1017,9 +1009,12 @@ export class Grid3d {
 
   // moveGrid change some triangles to render a different part of the segments.
   private moveGridByTiles(deltaColumn: integer, deltaRow: integer) {
-      // FIXME COMPLETE
-      //   1. perform a reverse mapping of populateTargetAtTile to find new target position
-      //   2. pass this as a delta to the moveGridByTiles.
+    console.log(`Moving grid ${deltaColumn}, ${deltaRow} tiles`)
+    // FIXME COMPLETE
+    //   1. perform a reverse mapping of populateTargetAtTile to find new target position
+    //   2. pass this as a delta to the moveGridByTiles.
+    // For now, just redraw the whole thing.
+    this.updateGrid()
   }
 
 
@@ -1029,16 +1024,17 @@ export class Grid3d {
     // Segments hold whole tokens.
     intersection.segmentId = grid.segmentId
     if (grid.segmentId === EMPTY_SEGMENT_ID) {
+      intersection.tokenId = null
       return
     }
     const segment = this.boardReq.getGameBoard().segments[grid.segmentId]
     const baseTile = segment.tiles[grid.tileIndex]
-    const tokenId = baseTile.tokenId
-    if (tokenId === null) {
-      grid.segmentId = EMPTY_SEGMENT_ID
+    intersection.tokenId = baseTile.tokenId
+    if (intersection.tokenId === null) {
+      intersection.segmentId = EMPTY_SEGMENT_ID
       return
     }
-    const tileIdxList = this.tokenIdToGridTileIndex[tokenId]
+    const tileIdxList = this.tokenIdToGridTileIndex[intersection.tokenId]
     intersection.tileId0 = tileIdxList[0]
     intersection.tokenTile0 = segment.tiles[intersection.tileId0]
 
@@ -1063,7 +1059,7 @@ export class Grid3d {
   //   Casts a ray from the camera through the x/y (range -1 to 1) of the screen
   //   to find the first tile and its token id.  The structure is populated with
   //   the intersection.
-  getIntersectedTile(camera: THREE.Camera, clientX: number, clientY: number, intersection: IntersectedTokenTile) {
+  populateIntersectedTile(camera: THREE.Camera, clientX: number, clientY: number, intersection: IntersectedTokenTile) {
     if (this.object !== null) {
       this.coords.x = clientX
       this.coords.y = clientY
@@ -1086,12 +1082,12 @@ export class Grid3d {
 
 
   // onSegmentLoaded A whole game board segment completed loading from the server.
-  private onGameBoardSegmentLoaded(x: integer, y: integer, segmentId: string): void {
+  private onGameBoardSegmentLoaded(_x: integer, _y: integer, segmentId: string): void {
     this.segmentManager.onSegmentUpdate(this.boardReq.getGameBoard().segments[segmentId])
   }
 
   // onSegmentUpdated One or more tile in a game board segment was updated from the server.
-  private onGameBoardSegmentUpdated(x: integer, y: integer, segmentId: string, tileIndicies: integer[]): void {
+  private onGameBoardSegmentUpdated(_x: integer, _y: integer, _segmentId: string, _tileIndicies: integer[]): void {
     // FIXME
   }
 

@@ -66,6 +66,18 @@ export class HostApi {
   }
 
 
+  // startGameLobby start a new game lobby
+  // Returns the game ID for the new game.
+  async startGameLobby(name: string, maxPlayers: integer): Promise<string> {
+    const data = await this.connection.postJson('/game', {name, maxPlayers})
+    const gameId = data.asStr('gameId')
+    if (gameId !== null) {
+      return gameId
+    }
+    return Promise.reject('unexpected server response for server parameters')
+  }
+
+
   // loadSegment load a game board segment at the x, y corner
   // Up to the maximum returned.
   async loadSegment(
@@ -75,7 +87,7 @@ export class HostApi {
     width: integer,
     height: integer,
   ): Promise<SegmentTile[]> {
-    const data = await this.connection.postJson(`/game/${gameId}/segment`, {x, y, width, height})
+    const data = await this.connection.getJson(`/game/${gameId}/segment`, {x, y, width, height})
     const segmentCount = data.asInt('count')
     if (segmentCount === null) {
       return Promise.reject('unexpected server response for load segment')

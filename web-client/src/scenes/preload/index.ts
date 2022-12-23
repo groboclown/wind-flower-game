@@ -1,5 +1,6 @@
 // Pre-Load assets at initial load time.
 import Phaser from 'phaser'
+import { MAINMENU_SCENE_NAME } from '../names'
 import { AllAssets } from '../../assets'
 import { setupTextureCache, loadTexture } from '../../lib/cache/texture'
 
@@ -60,8 +61,7 @@ export default class PreloadScene extends Phaser.Scene {
       self.cameras.main.fadeOut(1000, 0, 0, 0)
     })
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      self.scene.start('GameBoardScene')
-      self.scene.start('HudScene')
+      self.scene.start(MAINMENU_SCENE_NAME)
     })
   }
 

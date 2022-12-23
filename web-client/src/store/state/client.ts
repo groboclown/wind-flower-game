@@ -1,8 +1,8 @@
 // Information for the game specific to the client player.
 import { createReducer } from '@reduxjs/toolkit'
-import { updateServerTurn, createAccount } from '../actions/api'
+import { updateServerTurn, createAccount, updateServerPerformanceInformation } from '../actions/api'
 import { loadedClientAccount, loadedServer } from '../actions/clientdb'
-import { updatedUserPreferences } from '../actions/ui_settings'
+import { updatedUserPreferences } from '../actions/ui-settings'
 import { Token } from './turn'
 
 // This will probably need to change around some, to
@@ -18,12 +18,17 @@ export interface User {
   exists: boolean
   defaultGameName: string
   defaultTileTheme: string
+  visibleWidth: integer
+  visibleHeight: integer
 }
 
 
 export interface Server {
   serverName: string
   publicKey: string
+  maximumBoardSegmentWidth: integer
+  maximumBoardSegmentHeight: integer
+  maximumPlayerCount: integer
 }
 
 
@@ -49,10 +54,16 @@ function initialClientPlayerState(): ClientPlayerState {
       exists: false,
       defaultGameName: '',
       defaultTileTheme: '',
+      visibleWidth: 30,
+      visibleHeight: 30,
+
     },
     server: {
       serverName: '',
       publicKey: '',
+      maximumBoardSegmentWidth: 0,
+      maximumBoardSegmentHeight: 0,
+      maximumPlayerCount: 0,
     },
   }
 }
@@ -88,10 +99,17 @@ export const clientPlayerReducer = createReducer(
         state.server.publicKey = action.payload.publicKey
         state.server.serverName = action.payload.serverName
       })
+      .addCase(updateServerPerformanceInformation, (state, action) => {
+        state.server.maximumBoardSegmentWidth = action.payload.maximumBoardSegmentWidth
+        state.server.maximumBoardSegmentHeight = action.payload.maximumBoardSegmentHeight
+        state.server.maximumPlayerCount = action.payload.maximumPlayerCount
+      })
       .addCase(updatedUserPreferences, (state, actions) => {
         state.user.humanName = actions.payload.humanName
         state.user.defaultGameName = actions.payload.gameName
         state.user.defaultTileTheme = actions.payload.tileTheme
+        state.user.visibleWidth = actions.payload.visibleWidth
+        state.user.visibleHeight = actions.payload.visibleHeight
       })
   },
 )

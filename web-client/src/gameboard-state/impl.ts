@@ -1,8 +1,9 @@
 // Manages the game board state
 
-import { ClientGameBoard, TileParameterType, ClientTile } from './state'
+import { ClientGameBoard, TileParameterType, ClientTile, ClientGameBoardSegment } from './state'
 import { GameBoardRequests, GameBoardStatusHandler } from './events'
 import { HostApi } from '../server/api'
+import { SegmentTile } from '../server/structs'
 import { GameBoardManager } from './manager'
 
 
@@ -89,6 +90,22 @@ export class GameBoardManagerImpl implements GameBoardManager {
     this.callbacks = newCallbacks
   }
 
+  loadSegment(x: integer, y: integer, width: integer, height: integer): Promise<SegmentTile[]> {
+    return this.server.loadSegment(
+      this.gameId,
+      x,
+      y,
+      width,
+      height,
+    )
+  }
+
+  reportSegmentLoaded(segment: ClientGameBoardSegment) {
+    this.board.segments[segment.segmentId] = segment
+    this.callbacks.forEach((cb) => {
+      cb.handler.onSegmentLoaded(segment.x, segment.y, segment.segmentId)
+    })
+  }
 }
 
 
@@ -114,8 +131,19 @@ class CallbackRequest implements GameBoardRequests {
     // the value the remainder, so subtracting that means we're left with
     // a whole board position.  e.g. board size of 10, value 22: 22 % 10 = 2,
     // 22 - 2 = 20, which is a whole board size.
-    normalized[0] = x - (x % this.parent.board.segmentWidth)
-    normalized[1] = y - (y % this.parent.board.segmentHeight)
+    x = x - (x % this.parent.board.segmentWidth)
+    y = y - (y % this.parent.board.segmentHeight)
+
+    // Negative numbers round the wrong direction.
+    if (x < 0) {
+      x -= this.parent.board.segmentWidth
+    }
+    if (y < 0) {
+      y -= this.parent.board.segmentHeight
+    }
+
+    normalized[0] = x
+    normalized[1] = y
   }
 
   getSegmentId(x: integer, y: integer): string {
@@ -129,6 +157,15 @@ class CallbackRequest implements GameBoardRequests {
     // 22 - 2 = 20, which is a whole board size.
     x = x - (x % this.parent.board.segmentWidth)
     y = y - (y % this.parent.board.segmentHeight)
+
+    // Negative numbers round the wrong direction.
+    if (x < 0) {
+      x -= this.parent.board.segmentWidth
+    }
+    if (y < 0) {
+      y -= this.parent.board.segmentHeight
+    }
+
     return getAbsSegmentId(x, y)
   }
 
@@ -140,14 +177,49 @@ class CallbackRequest implements GameBoardRequests {
     return this.parent.board
   }
 
-  requestSegment(x: number, y: number, segmentIndex: string): void {
+  requestSegment(x: number, y: number, segmentId: string): void {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
     }
-    // TODO FIXME
+    if (this.parent.board.segments[segmentId] === undefined) {
+      // Assume x/y are normalized.
+      const parent = this.parent
+      const width = parent.board.segmentWidth
+      const height = parent.board.segmentHeight
+
+      this.parent.loadSegment(x, y, width, height)
+        .then((serverTiles) => {
+          const count = width * height
+          const tiles: ClientTile[] = new Array<ClientTile>()
+          for (let i = 0; i < count; i++) {
+            tiles[i] = {
+              ...EMPTY_TILE,
+              parameters: {},
+            }
+          }
+          serverTiles.forEach((serverTile) => {
+            const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
+            const tile = tiles[tileIndex]
+            tile.category = serverTile.c
+            tile.height = serverTile.h
+            tile.tokenId = serverTile.t
+            serverTile.p.forEach((param) => {
+              tile.parameters[param.i] = param.q
+            })
+          })
+
+          const segment: ClientGameBoardSegment = {
+            segmentId,
+            x,
+            y,
+            tiles,
+          }
+          parent.reportSegmentLoaded(segment)
+        })
+    }
   }
 
-  markSegmentNotVisible(segmentIndex: string): void {
+  markSegmentNotVisible(segmentId: string): void {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
     }
@@ -158,10 +230,10 @@ class CallbackRequest implements GameBoardRequests {
   // TODO will eventually be replaced by the full API to send an event to the server
   //   for the end-of-turn token placement.
   markPlayedToken(
-    segmentId: string,
-    x: integer,
-    y: integer,
-    tiles: ClientTile[],
+    _segmentId: string,
+    _x: integer,
+    _y: integer,
+    _tiles: ClientTile[],
   ): void {
     if (this.parent === null) {
       throw new Error('Handler deactivated')

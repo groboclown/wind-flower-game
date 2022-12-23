@@ -71,3 +71,19 @@ export function getAssetListRef(): string {
 export function getBootImageRef(): string {
   return './images/loading-screen/background.svg'
 }
+
+
+export interface ServerInfoDef {
+  name: string
+  publicKeyBase64: string
+  restApiUrl: string
+}
+
+export interface AllServers {
+  servers: ServerInfoDef[]
+}
+
+
+export function getServerInfoRef(): string {
+  return './server-info.json'
+}

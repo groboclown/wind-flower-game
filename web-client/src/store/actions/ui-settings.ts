@@ -6,6 +6,8 @@ export interface UserPreferences {
   humanName: string
   gameName: string
   tileTheme: string
+  visibleWidth: integer
+  visibleHeight: integer
 }
 
 

@@ -1,8 +1,90 @@
 // Generate test game board data.
 import {
 	ClientTile,
-	ClientGameBoardSegment,
 } from '../../gameboard-state'
+import { JsonLookup, JSONValueType } from '../../lib/typed-json'
+import { RestApiConnection } from '../../server/api'
+import { SegmentTile } from '../../server/structs'
+
+
+export const MAX_RETURNED_WIDTH = 10
+export const MAX_RETURNED_HEIGHT = 12
+
+
+export class TestDataGeneratorApiConnection implements RestApiConnection {
+  gameId: string
+  lastTokenId: integer
+
+  constructor(gameId: string) {
+    this.gameId = gameId
+    this.lastTokenId = 0
+  }
+
+  setServerPublicKey(_key: string): void {
+    // ignore
+  }
+
+  // setAccountConnectionInformation set how the connection will mark the authorization information
+  //   Either set based on cached client information or on create account requests.
+  setAccountConnectionInformation(_accountId: string, _accountPrivateKey: string): void {
+    // ignore
+  }
+
+  async getJson(path: string, parameters: JSONValueType): Promise<JsonLookup> {
+    if (path === '/server/parameters') {
+      return new JsonLookup({
+        maximumTileWidth: MAX_RETURNED_WIDTH,
+        maximumTileHeight: MAX_RETURNED_HEIGHT,
+      })
+    }
+    if (path === `/game/${this.gameId}/segment`) {
+      if (parameters !== null && typeof parameters === 'object' && ! Array.isArray(parameters)) {
+        const x = parameters.x as number
+        const y = parameters.y as number
+        const size: BoardSize = {
+          width: Math.min(MAX_RETURNED_WIDTH, parameters.width as number),
+          height: Math.min(MAX_RETURNED_HEIGHT, parameters.height as number),
+        }
+        const retToken = [this.lastTokenId]
+
+        const segments = hexTokensToSegment(
+          size, x, y, retToken,
+          createAlternatingEmptyTokenSegment(size, x * y, 6),
+        )
+        this.lastTokenId = retToken[0]
+        return new JsonLookup({
+          count: segments.length,
+          segments: (segments as unknown) as JSONValueType[],
+        })
+      }
+    }
+
+    return new JsonLookup({
+      error: {
+        message: "Unknown path {path}",
+        parameters: {
+          path: path,
+        }
+      }
+    })
+  }
+
+  async postJson(path: string, _parameters: JSONValueType): Promise<JsonLookup> {
+    if (path === '/game') {
+      return new JsonLookup({gameId: this.gameId})
+    }
+
+    return new JsonLookup({
+      error: {
+        message: "Unknown path {path}",
+        parameters: {
+          path: path,
+        }
+      }
+    })
+  }
+}
+
 
 
 interface BoardSize {
@@ -35,60 +117,17 @@ export function createBoardRect(
 */
 
 
-export function createBlankBoard(
-  size: BoardSize,
-): {[keys: string]: ClientGameBoardSegment} {
-  return createGameBoard(
-    size,
-    [
-      createEmptyTokenSegment(size, 0),
-      createEmptyTokenSegment(size, 1),
-      createEmptyTokenSegment(size, 2),
-
-      createEmptyTokenSegment(size, 3),
-      createEmptyTokenSegment(size, 4),
-      createEmptyTokenSegment(size, 5),
-
-      createEmptyTokenSegment(size, 6),
-      createEmptyTokenSegment(size, 7),
-      createEmptyTokenSegment(size, 8),
-    ]
-  )
-}
-
-
-export function createAlternatingBoard(
-  size: BoardSize,
-): {[keys: string]: ClientGameBoardSegment} {
-  return createGameBoard(
-    size,
-    [
-      createAlternatingEmptyTokenSegment(size, 0),
-      createAlternatingEmptyTokenSegment(size, 1),
-      createAlternatingEmptyTokenSegment(size, 2),
-
-      createAlternatingTokenSegment(size, 3),
-      createAlternatingEmptyTokenSegment(size, 4),
-      createAlternatingTokenSegment(size, 5),
-
-      createAlternatingEmptyTokenSegment(size, 6),
-      createAlternatingEmptyTokenSegment(size, 7),
-      createAlternatingEmptyTokenSegment(size, 8),
-    ],
-  )
-}
-
-
 export function createAlternatingTokenSegment(
   size: BoardSize,
-  startIndex: number
+  startIndex: number,
+  heightType: integer,
 ): (ClientTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
-      height: calculateHeight(i, tokenSize, 6),
+      height: calculateHeight(i, tokenSize, heightType),
       tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
@@ -98,31 +137,15 @@ export function createAlternatingTokenSegment(
 
 export function createAlternatingEmptyTokenSegment(
   size: BoardSize,
-  startIndex: number
+  startIndex: number,
+  heightType: integer,
 ): (ClientTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
     tokens[i] = {
       ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
-      height: calculateHeight(i, tokenSize, 6),
-      tokenId: (23 * size.width * size.height * startIndex) + i,
-    }
-  }
-  return tokens
-}
-
-
-export function createEmptyTokenSegment(
-  size: BoardSize,
-  startIndex: number
-): (ClientTile | null)[] {
-  const tokens = createNullTokenSegment(size)
-  const tokenSize = getTokenBoardSize(size)
-  for (let i = 0; i < tokens.length; i++) {
-    tokens[i] = {
-      ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
-      height: calculateHeight(i, tokenSize, 6),
+      height: calculateHeight(i, tokenSize, heightType),
       tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
@@ -183,39 +206,6 @@ function createNullTokenSegment(
   const tokenSize = getTokenBoardSize(size)
   const tokens = new Array<ClientTile | null>(tokenSize.width * tokenSize.height)
   return tokens
-}
-
-
-// createGameBoard create a 3x3 game board, with a collection of 3x3 token grid.
-function createGameBoard(
-  size: BoardSize,
-  tokens: (ClientTile | null)[][],
-): {[keys: string]: ClientGameBoardSegment} {
-  if (tokens.length !== 9) {
-    throw new Error(`Expected 9 token groups, found ${tokens.length}`)
-  }
-  return asMappedSegments([
-    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 1.5) | 0, tokens[0]),
-    hexTokensToSegment(size, -(size.width * 0.5) | 0, -(size.height * 1.5) | 0, tokens[1]),
-    hexTokensToSegment(size,  (size.width * 0.5) | 0, -(size.height * 1.5) | 0, tokens[2]),
-
-    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[3]),
-    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[4]),
-    hexTokensToSegment(size, -(size.width * 1.5) | 0, -(size.height * 0.5) | 0, tokens[5]),
-
-    hexTokensToSegment(size, -(size.width * 1.5) | 0,  (size.height * 0.5) | 0, tokens[6]),
-    hexTokensToSegment(size, -(size.width * 0.5) | 0,  (size.height * 0.5) | 0, tokens[7]),
-    hexTokensToSegment(size,  (size.width * 0.5) | 0,  (size.height * 0.5) | 0, tokens[8]),
-  ])
-}
-
-
-function asMappedSegments(segments: ClientGameBoardSegment[]) {
-  const ret: {[keys: string]: ClientGameBoardSegment} = {}
-  segments.forEach((seg) => {
-    ret[seg.segmentId] = seg
-  })
-  return ret
 }
 
 
@@ -350,23 +340,18 @@ const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_
 function hexTokensToSegment(
   size: BoardSize,
   x: number, y: number,
+  tokenIdCounter: integer[],
   tokens: (ClientTile | null)[],
-): ClientGameBoardSegment {
+): SegmentTile[] {
   const tokenSize = getTokenBoardSize(size)
   const tokenWidth = tokenSize.width
   const tokenHeight = tokenSize.height
   if (tokenWidth *tokenHeight !== tokens.length) {
     throw new Error(`bad setup; token array must be ${tokenWidth} x ${tokenHeight}`)
   }
-  const tiles = Array<ClientTile>(size.width * size.height)
+  const tiles: SegmentTile[] = []
 
-  // First, fill the out tiles with empty tiles.
-  for (let i = 0; i < tiles.length; i++) {
-    tiles[i] = EMPTY_TILE
-  }
-  // console.log(`Creating segments at (${position.x}, ${position.y}) sized (${size.width}, ${size.height}) / ${tiles.length}`)
-
-  // Then, fill in the spots with the source tokens.
+  // Only generate tiles whose tokens aren't empty.
   let row = 0
   let hexPos = 0
   for (let hexY = 0; hexY < tokenHeight; hexY++) {
@@ -377,67 +362,59 @@ function hexTokensToSegment(
         const odd = hexX & 0x1
         const tileRow = row + odd
         if (tileRow + 1 < size.height) {
-          // Should be an exact copy of each tile,
-          //   but we'll add some color variance to be able to determine
-          //   which tile piece it is for each token.
+          const category = token.category
+          if (category !== null) {
+            // Eventually, have real parameters.
+            const tokenId = tokenIdCounter[0]++
 
-          const tilePos = (tileRow * size.width) + col
-
-          tiles[tilePos + 0] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
-          }
-          // For debugging, the colors can change per triangle to
-          //   ensure that they are positioned correctly on the screen.
-          tiles[tilePos + 1] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
-          }
-          tiles[tilePos + 2] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
-          }
-          tiles[tilePos + size.width + 0] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
-          }
-          tiles[tilePos + size.width + 1] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
-          }
-          tiles[tilePos + size.width + 2] = {
-            category: token.category,
-            variation: (Math.random() * 4) | 0,
-            height: token.height,
-            tokenId: token.tokenId,
-            parameters: token.parameters,
-            hasAdjacentPlacedTile: false,
-            isPlayerPlaceableToken: false,
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x,
+              y: row + y,
+              t: tokenId,
+              p: [],
+            })
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x + 1,
+              y: row + y,
+              t: tokenId,
+              p: [],
+            })
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x + 2,
+              y: row + y,
+              t: tokenId,
+              p: [],
+            })
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x,
+              y: row + y + 1,
+              t: tokenId,
+              p: [],
+            })
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x + 1,
+              y: row + y + 1,
+              t: tokenId,
+              p: [],
+            })
+            tiles.push({
+              c: category,
+              h: token.height,
+              x: col + x + 2,
+              y: row + y + 1,
+              t: tokenId,
+              p: [],
+            })
           }
         }
       }
@@ -445,11 +422,5 @@ function hexTokensToSegment(
     }
     row += 2
   }
-
-  // console.log(`Final segment length: ${tiles.length}`)
-  return {
-    x, y,
-    tiles,
-    segmentId: `${x},${y}`,
-  }
+  return tiles
 }

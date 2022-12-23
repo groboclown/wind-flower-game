@@ -1,4 +1,4 @@
 export * from './api'
 export * from './clientdb'
-export * from './interface'
-export * from './ui_settings'
+export * from './gameplay-interface'
+export * from './ui-settings'

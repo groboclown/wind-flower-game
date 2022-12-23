@@ -1,6 +1,6 @@
 // Client Gameplay User Interface State
 import { createReducer } from '@reduxjs/toolkit'
-import { gameBoardTokenSelected, gameBoardTokenDeSelected, gameBoardTokenHoverOver } from '../actions/interface'
+import { gameBoardTokenSelected, gameBoardTokenDeSelected, gameBoardTokenHoverOver } from '../actions/gameplay-interface'
 
 export interface GameplayInterfaceState {
   selectedTokenId: number | null
