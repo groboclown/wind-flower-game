@@ -7,8 +7,10 @@ import { RestApiConnection } from '../../server/api'
 import { SegmentTile } from '../../server/structs'
 
 
-export const MAX_RETURNED_WIDTH = 10
-export const MAX_RETURNED_HEIGHT = 12
+// Must be a multiple of 3
+export const MAX_RETURNED_WIDTH = 12
+// Must be a multiple of 2
+export const MAX_RETURNED_HEIGHT = 14
 
 
 export class TestDataGeneratorApiConnection implements RestApiConnection {
@@ -218,7 +220,7 @@ function getTokenBoardSize(
       size.width % 3 !== 0
       || size.height % 2 !== 0
   ) {
-    throw new Error(`bad setup; token array must be ${tokenWidth} x ${tokenHeight}`)
+    throw new Error(`bad setup; token array must be ${tokenWidth} x ${tokenHeight}, requested ${size.width} x ${size.height}`)
   }
   return { width: tokenWidth, height: tokenHeight | 0 }
 }

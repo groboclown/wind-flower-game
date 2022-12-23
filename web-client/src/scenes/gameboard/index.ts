@@ -162,6 +162,7 @@ export default class GameBoardScene extends Scene3D {
 
   update() {
     this.controls?.onUpdate()
+    this.grid3d?.checkForUpdate()
 	}
 
   // Remove the state listener when the scene is no longer active.

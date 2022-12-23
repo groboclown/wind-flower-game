@@ -205,6 +205,8 @@ export class Grid3d {
   private visibleWidth: integer
   private visibleHeight: integer
 
+  private lastGridLoadId: integer
+
 
   // Singleton data objects, reused during the calls.
   // Keeping them allocated saves time by not needing to recreate them or free them.
@@ -234,7 +236,7 @@ export class Grid3d {
   private vertexIndexToGridTileIndex: Uint32Array
 
   // for the given token ID, get the grid tiles with that token ID.
-  private tokenIdToGridTileIndex: {[key: integer]: integer[]}
+  private tokenIdToSegmentTileIndex: {[key: integer]: integer[]}
 
   // Looks up a grid tile index by the tile's [row][col] coordinates
   //    Note how this lookup is backwards from the usual nomenclature of col/row.
@@ -292,6 +294,7 @@ export class Grid3d {
       },
     }
     this.boardReq = boardManager.registerHandler(this.boardHandler)
+    this.lastGridLoadId = this.boardReq.getGameBoard().loadId
     this.segmentManager = new SegmentManager(this.boardReq)
 
     this.targetTilePositionColumn = targetTilePositionColumn
@@ -313,127 +316,31 @@ export class Grid3d {
     this.tilePositionCache = [0, 0]
 
     // Construct the basic grid information.
+    // The grid will be populated with real data later.
+    // For the initialization, we just need to allocate the data.
     this.gridTiles = new Array<GridTileInfo>(triangleCount)
     this.vertexIndexToGridTileIndex = new Uint32Array(3 * triangleCount)
     this.tilePosGridTileIndex = {}
-    this.tokenIdToGridTileIndex = {}
+    this.tokenIdToSegmentTileIndex = {}
+
+    let vertex = 0
+    for (let tileIndex = 0; tileIndex < triangleCount; tileIndex++) {
+      this.gridTiles[tileIndex] = {
+        segmentId: EMPTY_SEGMENT_ID,
+        x: 0,
+        y: 0,
+        tileIndex,
+        vertexA: vertex++,
+        vertexB: vertex++,
+        vertexC: vertex++,
+      }
+    }
 
     // ----------------------------------------
     // Basic planar position (x/z values)
     const normals = new Float32Array(3 * 3 * triangleCount)
     const uv = new Float32Array(2 * 3 * triangleCount)
     const positions = new Float32Array(3 * 3 * triangleCount)
-
-    //   The starting x/z is based on maintaining the target view in the
-    //   center of the grid.
-    let column = targetTilePositionColumn - (visibleWidth >> 1)
-    let row = targetTilePositionRow - (visibleHeight >> 1)
-    //   The triangles along the columns in a single row overlap each other, so
-    //   that 2 triangles create 1 full side length from start of one to
-    //   start of next.
-    let x = column * SIDE_LENGTH_HALF
-    //   But the row distance extends along the base.
-    let z = row * BASE_LENGTH
-    let tileIndex = 0
-    let vertex = 0
-    let vIdx = 0
-    let uvIdx = 0
-    while (tileIndex < triangleCount) {
-      const crOdd = (column + row) & 0x1
-
-      this.gridTiles[tileIndex] = {
-        segmentId: EMPTY_SEGMENT_ID,
-        x: column,
-        y: row,
-        tileIndex,
-        vertexA: vertex,
-        vertexB: vertex + 1,
-        vertexC: vertex + 2,
-      }
-      this.vertexIndexToGridTileIndex[vertex    ] = tileIndex
-      this.vertexIndexToGridTileIndex[vertex + 1] = tileIndex
-      this.vertexIndexToGridTileIndex[vertex + 2] = tileIndex
-
-      // -------------------------------------
-      // 2D (x-z) Location Calculation
-      // Points A, B, C:
-      //      + A
-      //     / \
-      //  B +---+ C
-      // To flip the z coordinate, it's (z + (crOdd * BASE_LENGTH)) or (z + ((1 - hyOdd) * BASE_LENGTH))
-      const ax = x + SIDE_LENGTH_HALF
-      const az = z + (crOdd * BASE_LENGTH)
-      let bx = x
-      let bz = z + ((1 - crOdd) * BASE_LENGTH)
-      let cx = x + SIDE_LENGTH
-      let cz = bz
-
-      if (crOdd !== 0) {
-        // Need to swap the b & c to accomodate the right-hand rule
-        // to make the normals all point in the right direction
-        const tmpx = bx
-        const tmpz = bz
-        bx = cx
-        bz = cz
-        cx = tmpx
-        cz = tmpz
-      }
-
-      // -------------------------------
-      // Update the mesh values
-      // Height (y) will be computed separately.
-
-      positions[vIdx    ] = ax
-      positions[vIdx + 1] = 0
-      positions[vIdx + 2] = az
-
-      positions[vIdx + 3] = bx
-      positions[vIdx + 4] = 0
-      positions[vIdx + 5] = bz
-
-      positions[vIdx + 6] = cx
-      positions[vIdx + 7] = 0
-      positions[vIdx + 8] = cz
-
-      // Because height is computed separately,
-      // the normals can't be computed yet.
-
-      normals[vIdx    ] = 0
-      normals[vIdx + 1] = 0
-      normals[vIdx + 2] = 0
-
-      normals[vIdx + 3] = 0
-      normals[vIdx + 4] = 0
-      normals[vIdx + 5] = 0
-
-      normals[vIdx + 6] = 0
-      normals[vIdx + 7] = 0
-      normals[vIdx + 8] = 0
-
-      // And the uv needs a tile to know where to
-      // point the texture.
-
-      uv[uvIdx    ] = 0
-      uv[uvIdx + 1] = 0
-
-      uv[uvIdx + 2] = 0
-      uv[uvIdx + 3] = 0
-
-      uv[uvIdx + 4] = 0
-      uv[uvIdx + 5] = 0
-
-      // ------------------------------
-      // End-of-loop increment.
-      vertex += 3
-      vIdx += 3 * 3
-      uvIdx += 2 * 3
-      tileIndex++
-      column++
-      if (column >= visibleWidth) {
-        column = 0
-        row++
-      }
-    }
 
     // ---------------------------------
     // Basic object construction.
@@ -485,6 +392,15 @@ export class Grid3d {
       return []
     }
     return [this.object]
+  }
+
+
+  // checkForUpdate Called to, once a tick, see if loads need to be displayed.
+  checkForUpdate() {
+    // For now, just update the whole grid when the board updates.
+    if (this.lastGridLoadId !== this.boardReq.getGameBoard().loadId) {
+      this.updateGrid()
+    }
   }
 
 
@@ -676,13 +592,25 @@ export class Grid3d {
       this.targetTilePositionRow++
     }
 
+    const lastLoadId = this.lastGridLoadId
+    const currentGridLoadId = this.boardReq.getGameBoard().loadId
+    this.lastGridLoadId = currentGridLoadId
+
     if (
         !force
         && prevTargetColumn === this.targetTilePositionColumn
         && prevTargetRow === this.targetTilePositionRow
+        && lastLoadId === currentGridLoadId
     ) {
       // No change and not forced to update.
       // Don't do anything.
+      return
+    }
+
+    if (lastLoadId !== currentGridLoadId) {
+      // The game board updated its state, due to something loading.
+      // Need to refresh the whole grid.
+      this.updateGrid()
       return
     }
 
@@ -721,14 +649,14 @@ export class Grid3d {
     console.log(`Updating entire grid`)
     this.segmentManager.startRedraw()
 
-    // The grid lookup just is added to, regardless of the segment
+    // The grid lookup is added to, regardless of the segment
     // position.  We don't need to make it line up with segments,
     // because as incremental changes happen, it gets jumbled up
     // anyway.
 
     // Reset all tile positions
     this.tilePosGridTileIndex = {}
-    this.tokenIdToGridTileIndex = {}
+    this.tokenIdToSegmentTileIndex = {}
 
     // TODO should this be stored as an instance variable, because we only
     //   need to calculate it once?
@@ -771,7 +699,7 @@ export class Grid3d {
     let startCol = leftCol
     let startRow = topRow
 
-    while (startCol < rightCol && startRow < bottomRow) {
+    while (startRow < bottomRow) {
       let segment = this.segmentManager.getSegment(startCol, startRow)
       seenSegments[segment.segmentId] = segment
 
@@ -785,7 +713,7 @@ export class Grid3d {
       // The starting point is relative to the starting col/row.
       let startRowTileIndex = (startCol - segment.x) + ((startRow - segment.y) * segWidth)
 
-      // Draw to the end of the segment or the end of the screen, which ever is first.
+      // Draw to the end of the segment or the end of the visible grid, which ever is first.
       const endCol = Math.min(rightCol, segment.x + segWidth)
       const endRow = Math.min(bottomRow, segment.y + segHeight)
       for (let row = startRow; row < endRow; row++) {
@@ -799,16 +727,17 @@ export class Grid3d {
           const tile = segment.tiles[tileIdx]
 
           // Update pointers
+// console.log(`Grid ${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
           const gridTile = this.gridTiles[gridTileIndex]
           gridTile.segmentId = segment.segmentId
           gridTile.tileIndex = tileIdx
           if (tile.tokenId !== null) {
-            let tokenLookup = this.tokenIdToGridTileIndex[tile.tokenId]
+            let tokenLookup = this.tokenIdToSegmentTileIndex[tile.tokenId]
             if (tokenLookup === undefined) {
               tokenLookup = []
-              this.tokenIdToGridTileIndex[tile.tokenId] = tokenLookup
+              this.tokenIdToSegmentTileIndex[tile.tokenId] = tokenLookup
             }
-            tokenLookup.push(gridTileIndex)
+            tokenLookup.push(tileIdx)
           }
 
           tileColLookup[col] = gridTileIndex
@@ -847,32 +776,41 @@ export class Grid3d {
             cz = tmpz
           }
 
-          // -------------------------------------
-          // Height Calculation
-          // Find the right height for each vertex.  This is
-          // the average of 3 tiles (1 of which is the current tile).
-          // This requires us to first perform a reverse tile index to hexagon triangle
-          // discovery.
-          let hexIndex: number
-          if (col % 6 < 3) {
-            hexIndex = (col % 3) + ((row % 2) * 3)
-          } else {
-            hexIndex = (col % 3) + (((row + 1) % 2) * 3)
-          }
-          if (hexIndex < 0) {
-            hexIndex += 6
-          }
-
-          const height = tile.height * HEIGHT_SCALE
+          // Height is just a place-holder for the moment.
+          // It is fully calculated later, once the lookup pointers
+          // are all in place.
 
           // -------------------------------
           // Update the mesh values
 
           // TODO it may be faster to avoid this hidden index lookup and instead
           //   do it ourselves, then perform an array copy at the end.
-          positions.setXYZ(vertexIndex    , ax, height, az)
-          positions.setXYZ(vertexIndex + 1, bx, height, bz)
-          positions.setXYZ(vertexIndex + 2, cx, height, cz)
+          //   That would mean the height (y) doesn't need to be messed with
+          //   yet, too, which is one more extra thing that's happening right now.
+          positions.setXYZ(vertexIndex    , ax, 0, az)
+          positions.setXYZ(vertexIndex + 1, bx, 0, bz)
+          positions.setXYZ(vertexIndex + 2, cx, 0, cz)
+
+          // uv (texture map) position requires turning the tile into the
+          //   corresponding hexagon triangle index.
+          let hexIndex: number
+          let col3 = col % 3
+          if (col3 < 0) {
+            col3 += 3
+          }
+          let row2 = row % 2
+          if (row2 < 0) {
+            row2 += 2
+          }
+          let col6 = col % 6
+          if (col6 < 0) {
+            col6 += 6
+          }
+          if (col6 < 3) {
+            hexIndex = col3 + (row2 * 3)
+          } else {
+            hexIndex = col3 + (((row2 + 1) & 0x1) * 3)
+          }
 
           const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, false, false)
           uv.setXY(vertexIndex    , uvPos[0][0], uvPos[0][1])
@@ -886,6 +824,7 @@ export class Grid3d {
           vertexIndex += 3
           tileIdx++
           gridTileIndex++
+          x += SIDE_LENGTH_HALF
         }
 
         // End of a row, so increment the start tile index by a row.
@@ -896,6 +835,18 @@ export class Grid3d {
 
       // End of a segment.
 
+      // Advance the segment location.  This will move along the
+      //   segment column first, and when that reaches the end, move
+      //   down a row.
+      // The first segment encountered will probably have the start column === left column,
+      //   which isn't aligned with the segment start.  Instead, once the left-side
+      //   segment is handled, it must increment by the segment chunks.
+      startCol = segment.x + segWidth
+      if (startCol > rightCol) {
+        startCol = leftCol
+        // The same chunk increment for the row applies.
+        startRow = segment.y + segHeight
+      }
     }
 
     // Update the heights and the normals
@@ -973,7 +924,7 @@ export class Grid3d {
         }
       }
 
-      height /= count
+      height = (height * HEIGHT_SCALE) / count
       positions.setY(here.vertexA, height)
       positions.setY(here.vertexB, height)
       positions.setY(here.vertexC, height)
@@ -1027,14 +978,13 @@ export class Grid3d {
       intersection.tokenId = null
       return
     }
-    const segment = this.boardReq.getGameBoard().segments[grid.segmentId]
+    const segment = this.segmentManager.getSegmentById(grid.segmentId)
     const baseTile = segment.tiles[grid.tileIndex]
     intersection.tokenId = baseTile.tokenId
     if (intersection.tokenId === null) {
-      intersection.segmentId = EMPTY_SEGMENT_ID
       return
     }
-    const tileIdxList = this.tokenIdToGridTileIndex[intersection.tokenId]
+    const tileIdxList = this.tokenIdToSegmentTileIndex[intersection.tokenId]
     intersection.tileId0 = tileIdxList[0]
     intersection.tokenTile0 = segment.tiles[intersection.tileId0]
 
@@ -1052,7 +1002,7 @@ export class Grid3d {
 
     intersection.tileId5 = tileIdxList[5]
     intersection.tokenTile5 = segment.tiles[intersection.tileId5]
-}
+  }
 
 
   // getInersectedTile find the tile / token that the x/y is over.
@@ -1084,11 +1034,21 @@ export class Grid3d {
   // onSegmentLoaded A whole game board segment completed loading from the server.
   private onGameBoardSegmentLoaded(_x: integer, _y: integer, segmentId: string): void {
     this.segmentManager.onSegmentUpdate(this.boardReq.getGameBoard().segments[segmentId])
+    // Note: this doesn't cause the grid to immediately update.
+    // Instead, on the next update loop, the last load vs. current load id will be
+    // checked.  This prevents a rapid fire segment load from changing everything.
+    // However, this could instead check if the segment is visible, and, if so,
+    // just update that one segment.
   }
 
   // onSegmentUpdated One or more tile in a game board segment was updated from the server.
-  private onGameBoardSegmentUpdated(_x: integer, _y: integer, _segmentId: string, _tileIndicies: integer[]): void {
-    // FIXME
+  private onGameBoardSegmentUpdated(_x: integer, _y: integer, segmentId: string, _tileIndicies: integer[]): void {
+    this.segmentManager.onSegmentUpdate(this.boardReq.getGameBoard().segments[segmentId])
+    // At the moment, this will cause the update() call to discover the load ID to be different
+    //   than the last load ID, and trigger a refresh.
+    //   This *should* mean just changing existing visible tiles, which should at most include
+    //   their heights + uv position + the heights of the tiles in adjacent tokens.
+
   }
 
   // onSegmentRemoved the game board has chosen to remove this segment from memory.
@@ -1167,6 +1127,17 @@ class SegmentManager {
     })
     // Everything remaining in the previous visible segments are not being used.
     Object.keys(this.previousVisibleSegments).forEach(this.boardReq.markSegmentNotVisible)
+  }
+
+  // getSegmentById Look up a segment by its identifier
+  // The segmentId should have already been loaded and stored in one of the allocated
+  // pointers.
+  getSegmentById(segmentId: string): ClientGameBoardSegment {
+    let seg = this.currentVisibleSegments[segmentId]
+    if (seg !== undefined) {
+      return seg
+    }
+    throw new Error(`Requested not-visible segment ${segmentId}`)
   }
 
   // getSegment Request a segment for drawing

@@ -98,6 +98,13 @@ export interface ClientGameBoard {
   // Indexed by segmentId.
   segments: {[keys: string]: ClientGameBoardSegment}
 
+  // Dynamic client load data
+
+  // An identifier that changes when the client segment
+  //   data is updated.  Allows for keeping track of
+  //   state changes.
+  loadId: integer
+
 
   // Dynamic client extrapolated data
 

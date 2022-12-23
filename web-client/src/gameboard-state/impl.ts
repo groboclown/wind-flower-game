@@ -3,13 +3,23 @@
 import { ClientGameBoard, TileParameterType, ClientTile, ClientGameBoardSegment } from './state'
 import { GameBoardRequests, GameBoardStatusHandler } from './events'
 import { HostApi } from '../server/api'
-import { SegmentTile } from '../server/structs'
 import { GameBoardManager } from './manager'
 
 
 const EMPTY_TILE: ClientTile = {
   tokenId: null,
   category: null,
+  variation: 0,
+  height: -2,
+  parameters: {},
+
+  hasAdjacentPlacedTile: false,
+  isPlayerPlaceableToken: false,
+}
+
+const LOADING_TILE: ClientTile = {
+  tokenId: null,
+  category: "loading",
   variation: 0,
   height: -2,
   parameters: {},
@@ -30,6 +40,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
   board: ClientGameBoard
   private server: HostApi
   private callbacks: {handler: GameBoardStatusHandler, req: CallbackRequest}[]
+  private loadingSegments: {[key: string]: boolean}
 
 
   constructor(
@@ -47,6 +58,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
     this.server = hostApi
     this.gameId = gameId
     this.callbacks = []
+    this.loadingSegments = {}
     this.board = {
       boardWidth: 0,
       boardHeight: 0,
@@ -59,6 +71,8 @@ export class GameBoardManagerImpl implements GameBoardManager {
       segmentHeight,
       parameterTypes: parameterTypes,
       segments: {},
+
+      loadId: 0,
 
       clientPlacedTile0: {...EMPTY_TILE},
       clientPlacedTile1: {...EMPTY_TILE},
@@ -90,18 +104,78 @@ export class GameBoardManagerImpl implements GameBoardManager {
     this.callbacks = newCallbacks
   }
 
-  loadSegment(x: integer, y: integer, width: integer, height: integer): Promise<SegmentTile[]> {
-    return this.server.loadSegment(
+  // -----------------------------------------------------------
+  // Internal stuff.
+
+  // loadSegment Load the segment from the server into the board.
+  // The x/y must be normalized to the segment origin.
+  async loadSegment(segmentId: string, x: integer, y: integer): Promise<void> {
+    if (this.board.segments[segmentId] !== undefined || this.loadingSegments[segmentId] === true) {
+      // already loaded, or being loaded
+      return
+    }
+    // Mark that the loading is starting, so we don't have multiple of these in-flight.
+    this.loadingSegments[segmentId] = true
+
+    // Because this is now loading, we must mark the tiles as loading before
+    // the async stuff starts.  That means this call allocates memory before the
+    // promise returns.
+
+    const width = this.board.segmentWidth
+    const height = this.board.segmentHeight
+    const count = width * height
+    const tiles: ClientTile[] = new Array<ClientTile>()
+    for (let i = 0; i < count; i++) {
+      tiles[i] = {
+        ...LOADING_TILE,
+        // The parameters need to be a new object, not a pointer to the same object.
+        parameters: {},
+      }
+    }
+    const segment: ClientGameBoardSegment = {
+      segmentId,
+      x,
+      y,
+      tiles,
+    }
+    this.board.segments[segmentId] = segment
+
+    // Because the board state changed, the board load ID must change.
+    this.board.loadId++
+
+    // However, the load hasn't happened, so the report loading isn't called yet.
+
+    // Start the asynchronous, waiting code.
+    const serverTiles = await this.server.loadSegment(
       this.gameId,
       x,
       y,
       width,
       height,
     )
-  }
 
-  reportSegmentLoaded(segment: ClientGameBoardSegment) {
-    this.board.segments[segment.segmentId] = segment
+    // The server returns the tiles with data in them.
+    // This model stores a segment fully populated to make
+    // index work quickly.  That means the tiles must be
+    // created empty, and filled in based on the server response.
+
+    serverTiles.forEach((serverTile) => {
+      const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
+      const tile = tiles[tileIndex]
+      tile.category = serverTile.c
+      tile.height = serverTile.h
+      tile.tokenId = serverTile.t
+      serverTile.p.forEach((param) => {
+        tile.parameters[param.i] = param.q
+      })
+    })
+
+    // The board state just changed again, so update the load id.
+    this.board.loadId++
+    // And mark the segment as no longer loading
+    delete this.loadingSegments[segmentId]
+
+    // Now we can report the segment as loaded.
     this.callbacks.forEach((cb) => {
       cb.handler.onSegmentLoaded(segment.x, segment.y, segment.segmentId)
     })
@@ -125,25 +199,34 @@ class CallbackRequest implements GameBoardRequests {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
     }
-
     // get an absolute position of the coordinate, so that it's a whole
     // board segment number.  By modulating the segment size, it makes
     // the value the remainder, so subtracting that means we're left with
     // a whole board position.  e.g. board size of 10, value 22: 22 % 10 = 2,
     // 22 - 2 = 20, which is a whole board size.
-    x = x - (x % this.parent.board.segmentWidth)
-    y = y - (y % this.parent.board.segmentHeight)
+    // Modulo with negative numbers, though is different.  If width is 10, and
+    // the first segment is at 0, then we should have segments at -10, 0, and 10.
+    // For x == 8, 8 % 10 = 8 which means the segment x is 0 (8 - (8 % 10)).
+    // However, for -8, it should be at -10, however -8 - (-8 % 10) is also 0.
+    // Instead, we need to perform the right modulo calculation.
 
-    // Negative numbers round the wrong direction.
-    if (x < 0) {
-      x -= this.parent.board.segmentWidth
+    const w = this.parent.board.segmentWidth
+    const h = this.parent.board.segmentHeight
+
+    let deltaX = x % w
+    let deltaY = y % h
+    if (deltaX < 0) {
+      // For the example above, for w == 10, -8 % 10 == -8, but
+      // we need to have it be 2, so that the x == -8 goes down
+      // to the -10, the segment it belongs to.
+      deltaX += w
     }
-    if (y < 0) {
-      y -= this.parent.board.segmentHeight
+    if (deltaY < 0) {
+      deltaY += h
     }
 
-    normalized[0] = x
-    normalized[1] = y
+    normalized[0] = x - deltaX
+    normalized[1] = y - deltaY
   }
 
   getSegmentId(x: integer, y: integer): string {
@@ -155,18 +238,28 @@ class CallbackRequest implements GameBoardRequests {
     // the value the remainder, so subtracting that means we're left with
     // a whole board position.  e.g. board size of 10, value 22: 22 % 10 = 2,
     // 22 - 2 = 20, which is a whole board size.
-    x = x - (x % this.parent.board.segmentWidth)
-    y = y - (y % this.parent.board.segmentHeight)
+    // Modulo with negative numbers, though is different.  If width is 10, and
+    // the first segment is at 0, then we should have segments at -10, 0, and 10.
+    // For x == 8, 8 % 10 = 8 which means the segment x is 0 (8 - (8 % 10)).
+    // However, for -8, it should be at -10, however -8 - (-8 % 10) is also 0.
+    // Instead, we need to perform the right modulo calculation.
 
-    // Negative numbers round the wrong direction.
-    if (x < 0) {
-      x -= this.parent.board.segmentWidth
+    const w = this.parent.board.segmentWidth
+    const h = this.parent.board.segmentHeight
+
+    let deltaX = x % w
+    let deltaY = y % h
+    if (deltaX < 0) {
+      // For the example above, for w == 10, -8 % 10 == -8, but
+      // we need to have it be 2, so that the x == -8 goes down
+      // to the -10, the segment it belongs to.
+      deltaX += w
     }
-    if (y < 0) {
-      y -= this.parent.board.segmentHeight
+    if (deltaY < 0) {
+      deltaY += h
     }
 
-    return getAbsSegmentId(x, y)
+    return getAbsSegmentId(x - deltaX, y - deltaY)
   }
 
   // Should be considered a read-only view on the board.
@@ -181,45 +274,11 @@ class CallbackRequest implements GameBoardRequests {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
     }
-    if (this.parent.board.segments[segmentId] === undefined) {
-      // Assume x/y are normalized.
-      const parent = this.parent
-      const width = parent.board.segmentWidth
-      const height = parent.board.segmentHeight
-
-      this.parent.loadSegment(x, y, width, height)
-        .then((serverTiles) => {
-          const count = width * height
-          const tiles: ClientTile[] = new Array<ClientTile>()
-          for (let i = 0; i < count; i++) {
-            tiles[i] = {
-              ...EMPTY_TILE,
-              parameters: {},
-            }
-          }
-          serverTiles.forEach((serverTile) => {
-            const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
-            const tile = tiles[tileIndex]
-            tile.category = serverTile.c
-            tile.height = serverTile.h
-            tile.tokenId = serverTile.t
-            serverTile.p.forEach((param) => {
-              tile.parameters[param.i] = param.q
-            })
-          })
-
-          const segment: ClientGameBoardSegment = {
-            segmentId,
-            x,
-            y,
-            tiles,
-          }
-          parent.reportSegmentLoaded(segment)
-        })
-    }
+    // Assume x/y are normalized.
+    this.parent.loadSegment(segmentId, x, y)
   }
 
-  markSegmentNotVisible(segmentId: string): void {
+  markSegmentNotVisible(_segmentId: string): void {
     if (this.parent === null) {
       throw new Error('Handler deactivated')
     }
