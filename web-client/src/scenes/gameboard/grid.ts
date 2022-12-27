@@ -233,6 +233,8 @@ export class Grid3d {
   private gridTiles: GridTileInfo[]
 
   // for the given vertex index in the array, the value is the index in the gridTiles list.
+  // TODO for some memory optimization, this could be vertex index / 3, because every 3 has
+  //   the same grid tile index.
   private vertexIndexToGridTileIndex: Uint32Array
 
   // for the given token ID, get the grid tiles with that token ID.
@@ -414,41 +416,59 @@ export class Grid3d {
     let uvMap: number[][]
     let gt: GridTileInfo
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0 as ClientTile, 0, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId0]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    // Optimization here:
+    // Because we know the vertex for a grid tile are allocated at the same time
+    //   (grid tile index === vertex index / 3), we can change the tile uv map
+    //   in memory to instead be the 6 points all in the same array.  That would be
+    //   a simple array copy, rather than a series of lookups.
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1 as ClientTile, 1, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId1]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    if (intersection.tokenTile0 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId0]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2 as ClientTile, 2, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId2]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    if (intersection.tokenTile1 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1, 1, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId1]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3 as ClientTile, 3, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId3]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    if (intersection.tokenTile2 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2, 2, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId2]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4 as ClientTile, 4, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId4]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    if (intersection.tokenTile3 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3, 3, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId3]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
 
-    uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5 as ClientTile, 5, mode.hoverOver, mode.selected)
-    gt = this.gridTiles[intersection.tileId5]
-    uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-    uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-    uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    if (intersection.tokenTile4 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4, 4, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId4]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile5 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5, 5, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.tileId5]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
   }
 
 
@@ -616,7 +636,7 @@ export class Grid3d {
 
     // If a large ratio of tiles need to be updated, then recreate the
     // entire grid.
-    const deltaCol = this.targetTilePositionColumn - this.targetTilePositionRow
+    const deltaCol = this.targetTilePositionColumn - prevTargetColumn
     if (Math.abs(deltaCol) > this.visibleWidth) {
       // All of the columns have moved off-screen, so redraw the whole thing.
       this.updateGrid()
@@ -629,6 +649,8 @@ export class Grid3d {
       this.updateGrid()
       return
     }
+
+    console.log(`Updating grid (${prevTargetColumn},${prevTargetRow} -> ${this.targetTilePositionColumn},${this.targetTilePositionRow}) and load ID (${lastLoadId} -> ${currentGridLoadId})`)
 
     const tileRatio = Math.abs(deltaCol * deltaRow / (this.visibleWidth * this.visibleHeight))
 
@@ -680,12 +702,13 @@ export class Grid3d {
     // Loop across each segment.  This requires multiple passes on row/column.
     // Care is taken to ensure the whole board is covered.
     // Full height calculation is done after generating the board.  The first
-    // pass just sets the token height.
+    //   pass sets up the grid -> token assignment which is used to discover
+    //   adjacent height values.
     // This is very inefficient.  For maximum efficiency, this should loop
-    // over the border of the segment as up to 4 loops without height checks,
-    // then within the border of the segment with height calculations.
-    // Then, a final pass over the borders.  The borders positions within
-    // the array buffers would need to be recorded for even faster processing.
+    //   over the border of the segment as up to 4 loops without height checks,
+    //   then within the border of the segment with height calculations.
+    //   Then, a final pass over the borders.  The borders positions within
+    //   the array buffers would need to be recorded for even faster processing.
     const seenSegments: {[key: string]: ClientGameBoardSegment} = {}
 
     const board = this.boardReq.getGameBoard()
@@ -985,23 +1008,31 @@ export class Grid3d {
       return
     }
     const tileIdxList = this.tokenIdToSegmentTileIndex[intersection.tokenId]
-    intersection.tileId0 = tileIdxList[0]
-    intersection.tokenTile0 = segment.tiles[intersection.tileId0]
+    if (tileIdxList === undefined) {
+      // This can happen for loading segments.
+      return
+    }
 
-    intersection.tileId1 = tileIdxList[1]
-    intersection.tokenTile1 = segment.tiles[intersection.tileId1]
+    // TODO the "|| (something)" code here is due to a bad rendering
+    //   Once the code is rendering right, this shouldn't be a problem... right?
 
-    intersection.tileId2 = tileIdxList[2]
-    intersection.tokenTile2 = segment.tiles[intersection.tileId2]
+    intersection.tileId0 = tileIdxList[0] || -1
+    intersection.tokenTile0 = segment.tiles[intersection.tileId0] || null
 
-    intersection.tileId3 = tileIdxList[3]
-    intersection.tokenTile3 = segment.tiles[intersection.tileId3]
+    intersection.tileId1 = tileIdxList[1] || -1
+    intersection.tokenTile1 = segment.tiles[intersection.tileId1] || null
 
-    intersection.tileId4 = tileIdxList[4]
-    intersection.tokenTile4 = segment.tiles[intersection.tileId4]
+    intersection.tileId2 = tileIdxList[2] || -1
+    intersection.tokenTile2 = segment.tiles[intersection.tileId2] || null
 
-    intersection.tileId5 = tileIdxList[5]
-    intersection.tokenTile5 = segment.tiles[intersection.tileId5]
+    intersection.tileId3 = tileIdxList[3] || -1
+    intersection.tokenTile3 = segment.tiles[intersection.tileId3] || null
+
+    intersection.tileId4 = tileIdxList[4] || -1
+    intersection.tokenTile4 = segment.tiles[intersection.tileId4] || null
+
+    intersection.tileId5 = tileIdxList[5] || -1
+    intersection.tokenTile5 = segment.tiles[intersection.tileId5] || null
   }
 
 
@@ -1126,7 +1157,7 @@ class SegmentManager {
       delete this.previousVisibleSegments[segId]
     })
     // Everything remaining in the previous visible segments are not being used.
-    Object.keys(this.previousVisibleSegments).forEach(this.boardReq.markSegmentNotVisible)
+    Object.keys(this.previousVisibleSegments).forEach((segId) => { this.boardReq.markSegmentNotVisible(segId) })
   }
 
   // getSegmentById Look up a segment by its identifier

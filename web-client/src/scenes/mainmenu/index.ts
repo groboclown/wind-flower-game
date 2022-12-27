@@ -15,6 +15,9 @@ import {
 import { AllServers } from '../../assets'
 
 
+const EVENT__START_GAME = "start game"
+
+
 export default class MainMenuScene extends Phaser.Scene {
   private storeListener: Unsubscribe | null
 
@@ -24,6 +27,18 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
 
+  preload() {
+    const self = this
+
+    this.add.image(this.centerX(), this.centerY(), 'main-menu/background')
+    this.events.once(EVENT__START_GAME, () => {
+      self.cameras.main.fadeOut(1000, 0, 0, 0)
+    })
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.start(GAME_LOAD_SCENE_NAME)
+    })
+  }
+
   create() {
     if (this.storeListener !== null) {
       this.storeListener()
@@ -31,7 +46,7 @@ export default class MainMenuScene extends Phaser.Scene {
     this.storeListener = store.subscribe(() => {
       if (store.getState().gameLobby.gameLobbyState === GAME_LOBBY_STATE__RUNNING) {
         // Start up the game.
-        this.scene.start(GAME_LOAD_SCENE_NAME)
+        this.events.emit(EVENT__START_GAME)
       }
     })
 
@@ -79,5 +94,13 @@ export default class MainMenuScene extends Phaser.Scene {
       this.storeListener()
       this.storeListener = null
     }
+  }
+
+  private centerX(): number {
+    return (0 + this.sys.game.canvas.width) / 2;
+  }
+
+  private centerY(): number {
+    return (0 + this.sys.game.canvas.height) / 2;
   }
 }

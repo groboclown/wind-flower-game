@@ -10,8 +10,11 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     // Assets necessary for the preload scene.
-    this.load.json('asset-list', getAssetListRef())
-    this.load.image('loading-background', getBootImageRef())
+    this.load.json('preload/asset-list', getAssetListRef())
+    this.load.image('preload/background', getBootImageRef())
+
+    // The server info is constructed from the server that hosts
+    //   the game client.
     this.load.json('server-info', getServerInfoRef())
   }
 

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1024"
+   height="768"
+   viewBox="0 0 1024 768"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="background.svg"
+   inkscape:export-filename="background.png"
+   inkscape:export-xdpi="96.000008"
+   inkscape:export-ydpi="96.000008"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:zoom="0.4204826"
+     inkscape:cx="453.05085"
+     inkscape:cy="531.5321"
+     inkscape:window-width="1676"
+     inkscape:window-height="1026"
+     inkscape:window-x="0"
+     inkscape:window-y="20"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient1103">
+      <stop
+         style="stop-color:#f6cee6;stop-opacity:1;"
+         offset="0"
+         id="stop1099" />
+      <stop
+         style="stop-color:#d767b2;stop-opacity:1;"
+         offset="1"
+         id="stop1101" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1103"
+       id="linearGradient1105"
+       x1="29.024117"
+       y1="34.384869"
+       x2="246.02867"
+       y2="204.73302"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(2.0234003,0,0,2.0234003,463.65732,-6.0165355)" />
+    <filter
+       inkscape:label="Flex Metal"
+       inkscape:menu="Materials"
+       inkscape:menu-tooltip="Bright, polished uneven metal casting, colorizable"
+       height="1.4978063"
+       y="-0.24890314"
+       width="1.0694207"
+       x="-0.034710362"
+       style="color-interpolation-filters:sRGB"
+       id="filter5465">
+      <feGaussianBlur
+         stdDeviation="5"
+         result="result8"
+         id="feGaussianBlur5449" />
+      <feTurbulence
+         seed="25"
+         result="result7"
+         type="turbulence"
+         numOctaves="2"
+         baseFrequency="0.03"
+         id="feTurbulence5451" />
+      <feComposite
+         in2="result8"
+         result="result6"
+         operator="in"
+         in="result8"
+         id="feComposite5453" />
+      <feDisplacementMap
+         in="result7"
+         in2="result6"
+         xChannelSelector="A"
+         yChannelSelector="A"
+         scale="120"
+         result="result4"
+         id="feDisplacementMap5455" />
+      <feComposite
+         in2="result4"
+         result="result2"
+         operator="arithmetic"
+         in="SourceGraphic"
+         k1="2"
+         k3="2.5"
+         k2="0.25"
+         id="feComposite5457"
+         k4="0" />
+      <feComposite
+         result="fbSourceGraphic"
+         in="result2"
+         operator="in"
+         in2="SourceGraphic"
+         id="feComposite5459" />
+      <feBlend
+         mode="screen"
+         in2="fbSourceGraphic"
+         result="result91"
+         id="feBlend5461" />
+      <feBlend
+         mode="multiply"
+         in2="result91"
+         id="feBlend5463" />
+    </filter>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-1.868079,-8.1523868)">
+    <rect
+       style="opacity:0.95;fill:#ee5200;stroke:#000000;stroke-width:1.77005;stroke-linecap:round;paint-order:fill markers stroke"
+       id="rect808"
+       width="1022.2299"
+       height="766.22998"
+       x="2.7531023"
+       y="9.0374098"
+       ry="0" />
+    <path
+       style="fill:url(#linearGradient1105);fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.535359px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 737.06322,267.64776 c 0,0 -56.28241,294.29571 -183.49468,181.75866 C 426.3563,336.86937 718.54276,251.95767 718.54276,251.95767 c 0,0 -243.63262,99.88182 -240.89685,-17.16264 2.73574,-117.04446 240.58663,0.33068 240.58663,0.33068 0,0 -285.19033,-106.30062 -189.38145,-188.869266 95.80892,-82.568644 203.09518,179.900626 203.09518,179.900626 0,0 -86.73946,-195.2217 25.20085,-187.820545 111.9403,7.401151 -6.55059,198.685115 -6.55059,198.685115 0,0 129.46268,-271.548851 230.38576,-124.39955 100.92301,147.1493 -221.67471,145.43364 -221.67471,145.43364 0,0 226.74202,184.1448 58.04417,245.01714 C 648.6539,563.94522 737.06322,267.64776 737.06322,267.64776 Z"
+       id="path947"
+       sodipodi:nodetypes="czczczczczczc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:100px;line-height:100%;font-family:'Linux Libertine Display';-inkscape-font-specification:'Linux Libertine Display';text-align:center;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="442.83313"
+       y="619.66113"
+       id="text1018"><tspan
+         sodipodi:role="line"
+         id="tspan1016"
+         x="442.83313"
+         y="619.66113">GAME LOADING</tspan></text>
+  </g>
+</svg>

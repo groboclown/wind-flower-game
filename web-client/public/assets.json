@@ -1,14 +1,24 @@
 {
   "boot": [
     {
-      "name": "mesh-texture",
+      "name": "game/mesh-texture",
       "type": "texture",
       "location": "./textures/mesh-texture/mesh-texture.png"
     },
     {
-      "name": "mesh-uv-map",
+      "name": "game/mesh-uv-map",
       "type": "json",
       "location": "./textures/mesh-texture/uv-map.json"
+    },
+    {
+      "name": "main-menu/background",
+      "type": "svg",
+      "location": "./images/main-menu/background.svg"
+    },
+    {
+      "name": "game-load/background",
+      "type": "svg",
+      "location": "./images/game-load/background.svg"
     }
   ]
 }

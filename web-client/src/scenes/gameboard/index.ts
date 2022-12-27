@@ -127,8 +127,8 @@ export default class GameBoardScene extends Scene3D {
     this.third.scene.add(light1)
 
     // Grid
-    this.textureHandler = new TextureHandler(this.cache.json.get('mesh-uv-map'))
-    const meshTexture = getCachedTexture(this, 'mesh-texture')
+    this.textureHandler = new TextureHandler(this.cache.json.get('game/mesh-uv-map'))
+    const meshTexture = getCachedTexture(this, 'game/mesh-texture')
     meshTexture.mapping = THREE.UVMapping
 
     // for (let i = 0; i < this.gameBoardState.segments.length; i++) {
@@ -161,8 +161,10 @@ export default class GameBoardScene extends Scene3D {
 
 
   update() {
-    this.controls?.onUpdate()
-    this.grid3d?.checkForUpdate()
+    if (this.controls !== null && this.grid3d !== null) {
+      this.controls.onUpdate()
+      this.grid3d.updateGridAtTarget(this.controls.getTarget())
+    }
 	}
 
   // Remove the state listener when the scene is no longer active.

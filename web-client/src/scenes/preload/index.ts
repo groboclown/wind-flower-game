@@ -10,8 +10,8 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    this.loadAssets(this.cache.json.get('asset-list') as AllAssets)
-    this.add.image(this.centerX(), this.centerY(), 'loading-background')
+    this.loadAssets(this.cache.json.get('preload/asset-list') as AllAssets)
+    this.add.image(this.centerX(), this.centerY(), 'preload/background')
     this.createProgressbar(this.centerX(), this.centerY() + 200)
   }
 
@@ -189,10 +189,10 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   private centerX(): number {
-      return (0 + this.sys.game.canvas.width) / 2;
+    return (0 + this.sys.game.canvas.width) / 2;
   }
 
   private centerY(): number {
-      return (0 + this.sys.game.canvas.height) / 2;
+    return (0 + this.sys.game.canvas.height) / 2;
   }
 }
