@@ -4,11 +4,12 @@ import { ClientGameBoard, TileParameterType, ClientTile, ClientGameBoardSegment 
 import { GameBoardRequests, GameBoardStatusHandler } from './events'
 import { HostApi } from '../server/api'
 import { GameBoardManager } from './manager'
+import { CATEGORY_UNSET, CATEGORY_LOADING, CATEGORY_EMPTY } from './asset-names'
 
 
 const EMPTY_TILE: ClientTile = {
   tokenId: null,
-  category: null,
+  category: CATEGORY_UNSET,
   variation: 0,
   height: -2,
   parameters: {},
@@ -19,7 +20,7 @@ const EMPTY_TILE: ClientTile = {
 
 const LOADING_TILE: ClientTile = {
   tokenId: null,
-  category: "loading",
+  category: CATEGORY_LOADING,
   variation: 0,
   height: -2,
   parameters: {},
@@ -121,16 +122,21 @@ export class GameBoardManagerImpl implements GameBoardManager {
     // the async stuff starts.  That means this call allocates memory before the
     // promise returns.
 
+    // This also needs to keep track of tiles that are empty, and make
+    // sure after a server load, that those tiles are replaced with empty tokens.
+
     const width = this.board.segmentWidth
     const height = this.board.segmentHeight
     const count = width * height
     const tiles: ClientTile[] = new Array<ClientTile>()
+    const emptyServerTiles: {[keys: integer]: integer} = {}
     for (let i = 0; i < count; i++) {
       tiles[i] = {
         ...LOADING_TILE,
         // The parameters need to be a new object, not a pointer to the same object.
         parameters: {},
       }
+      emptyServerTiles[i] = i
     }
     const segment: ClientGameBoardSegment = {
       segmentId,
@@ -161,6 +167,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
     serverTiles.forEach((serverTile) => {
       const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
+      delete emptyServerTiles[tileIndex]
       const tile = tiles[tileIndex]
       tile.category = serverTile.c
       tile.height = serverTile.h
@@ -168,6 +175,11 @@ export class GameBoardManagerImpl implements GameBoardManager {
       serverTile.p.forEach((param) => {
         tile.parameters[param.i] = param.q
       })
+    })
+    Object.values(emptyServerTiles).forEach((tileIndex) => {
+      const tile = tiles[tileIndex]
+      // TODO detect if it's placeable.
+      tile.category = CATEGORY_EMPTY
     })
 
     // The board state just changed again, so update the load id.

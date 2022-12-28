@@ -6,6 +6,11 @@
       "location": "./textures/mesh-texture/mesh-texture.png"
     },
     {
+      "name": "game/mesh-bump",
+      "type": "texture",
+      "location": "./textures/mesh-texture/mesh-bump.png"
+    },
+    {
       "name": "game/mesh-uv-map",
       "type": "json",
       "location": "./textures/mesh-texture/uv-map.json"

@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1000"
+   height="866"
+   viewBox="0 0 529.1667 458.25834"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="_hover_select.bump.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:zoom="0.84096521"
+     inkscape:cx="465.5365"
+     inkscape:cy="436.99786"
+     inkscape:window-width="1676"
+     inkscape:window-height="1026"
+     inkscape:window-x="0"
+     inkscape:window-y="20"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5" />
+  <defs
+     id="defs2">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 581.26462 : 1"
+       inkscape:vp_y="0 : 2000 : 0"
+       inkscape:vp_z="420.00001 : 581.26462 : 1"
+       inkscape:persp3d-origin="210 : 482.2646 : 1"
+       id="perspective240" />
+    <filter
+       inkscape:menu-tooltip="Bright metallic effect for any color"
+       inkscape:menu="Bevels"
+       inkscape:label="Bright Metal"
+       style="color-interpolation-filters:sRGB;"
+       id="filter3625"
+       x="-0.10969347"
+       y="-0.12654015"
+       width="1.2193869"
+       height="1.2530803">
+      <feGaussianBlur
+         result="result6"
+         stdDeviation="8"
+         in="SourceGraphic"
+         id="feGaussianBlur3605" />
+      <feComposite
+         in2="SourceGraphic"
+         in="result6"
+         operator="xor"
+         result="result10"
+         id="feComposite3607" />
+      <feGaussianBlur
+         result="result2"
+         stdDeviation="8"
+         id="feGaussianBlur3609" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="atop"
+         in="result10"
+         result="result91"
+         id="feComposite3611" />
+      <feComposite
+         result="result4"
+         in="result2"
+         operator="xor"
+         in2="result91"
+         id="feComposite3613" />
+      <feGaussianBlur
+         in="result4"
+         result="result3"
+         stdDeviation="4"
+         id="feGaussianBlur3615" />
+      <feSpecularLighting
+         result="result5"
+         specularExponent="5"
+         specularConstant="1.1"
+         surfaceScale="18"
+         id="feSpecularLighting3619">
+        <feDistantLight
+           azimuth="235"
+           elevation="55"
+           id="feDistantLight3617" />
+      </feSpecularLighting>
+      <feComposite
+         in="result3"
+         k3="1.1"
+         k2="0.5"
+         operator="arithmetic"
+         result="result7"
+         in2="result5"
+         k1="0.5"
+         id="feComposite3621" />
+      <feComposite
+         in="result7"
+         operator="atop"
+         in2="SourceGraphic"
+         result="result8"
+         id="feComposite3623" />
+    </filter>
+    <filter
+       inkscape:menu-tooltip="Bright metallic effect for any color"
+       inkscape:menu="Bevels"
+       inkscape:label="Bright Metal"
+       style="color-interpolation-filters:sRGB;"
+       id="filter3647"
+       x="-0.090799457"
+       y="-0.10474441"
+       width="1.1815989"
+       height="1.2094888">
+      <feGaussianBlur
+         result="result6"
+         stdDeviation="8"
+         in="SourceGraphic"
+         id="feGaussianBlur3627" />
+      <feComposite
+         in2="SourceGraphic"
+         in="result6"
+         operator="xor"
+         result="result10"
+         id="feComposite3629" />
+      <feGaussianBlur
+         result="result2"
+         stdDeviation="8"
+         id="feGaussianBlur3631" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="atop"
+         in="result10"
+         result="result91"
+         id="feComposite3633" />
+      <feComposite
+         result="result4"
+         in="result2"
+         operator="xor"
+         in2="result91"
+         id="feComposite3635" />
+      <feGaussianBlur
+         in="result4"
+         result="result3"
+         stdDeviation="4"
+         id="feGaussianBlur3637" />
+      <feSpecularLighting
+         result="result5"
+         specularExponent="5"
+         specularConstant="1.1"
+         surfaceScale="18"
+         id="feSpecularLighting3641">
+        <feDistantLight
+           azimuth="235"
+           elevation="55"
+           id="feDistantLight3639" />
+      </feSpecularLighting>
+      <feComposite
+         in="result3"
+         k3="1.1"
+         k2="0.5"
+         operator="arithmetic"
+         result="result7"
+         in2="result5"
+         k1="0.5"
+         id="feComposite3643" />
+      <feComposite
+         in="result7"
+         operator="atop"
+         in2="SourceGraphic"
+         result="result8"
+         id="feComposite3645" />
+    </filter>
+  </defs>
+  <rect
+     style="display:none;opacity:0.95;fill:#000000;fill-opacity:1;stroke-width:1.00013;stroke-linecap:round;paint-order:fill markers stroke"
+     id="rect3557"
+     width="587.89832"
+     height="488.30423"
+     x="-24.333412"
+     y="-14.401687" />
+  <path
+     style="fill:#4e4e4e;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.529167px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3647)"
+     d="M 131.76251,0 0,228.60001 131.76251,458.25835 H 396.34585 L 528.63752,228.60001 396.34585,0 Z m 34.17982,52.391636 H 371.35202 L 474.05687,229.86505 371.35202,408.16012 H 165.94233 L 63.64883,229.86505 Z"
+     id="path3018" />
+  <path
+     style="fill:#858585;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.438021px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3625)"
+     d="M 153.46808,42.358999 44.400827,231.5841 153.46808,421.68523 H 372.47861 L 481.98384,231.5841 372.47861,42.358999 Z m 28.29256,43.367505 H 351.7898 L 436.80439,232.63124 351.7898,380.21611 H 181.76064 L 97.08655,232.63124 Z"
+     id="path3020" />
+</svg>

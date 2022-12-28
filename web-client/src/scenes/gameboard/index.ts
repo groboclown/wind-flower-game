@@ -130,6 +130,8 @@ export default class GameBoardScene extends Scene3D {
     this.textureHandler = new TextureHandler(this.cache.json.get('game/mesh-uv-map'))
     const meshTexture = getCachedTexture(this, 'game/mesh-texture')
     meshTexture.mapping = THREE.UVMapping
+    const meshBump = getCachedTexture(this, 'game/mesh-bump')
+    meshBump.mapping = THREE.UVMapping
 
     // for (let i = 0; i < this.gameBoardState.segments.length; i++) {
     //   console.log(`Segment ${i} sized ${this.gameBoardState.segments[i].tiles.length}`)
@@ -137,6 +139,7 @@ export default class GameBoardScene extends Scene3D {
 		this.grid3d = new Grid3d(
       this.gameBoardManager,
       meshTexture,
+      meshBump,
       this.textureHandler,
       state.clientPlayer.user.visibleWidth,
       state.clientPlayer.user.visibleHeight,

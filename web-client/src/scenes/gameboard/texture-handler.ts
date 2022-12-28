@@ -1,7 +1,8 @@
 // Handle mapping the tile to the texture.
 
 import { ClientTile } from '../../gameboard-state'
-import { JSONValueType } from "../../lib/typed-json"
+import { JSONValueType } from '../../lib/typed-json'
+import { CATEGORY_UNKNOWN } from '../../gameboard-state/asset-names'
 
 
 interface HexUV {
@@ -23,15 +24,11 @@ interface CategoryMap {
 }
 
 
-// hard-coded asset name
-const UNKNOWN_CATEGORY = 'unknown'
-
-
 interface JsonCategoryVariation {
-  normal: number[][][]
-  hover: number[][][]
-  select: number[][][]
-  hover_select: number[][][]
+  _normal: number[][][]
+  _hover: number[][][]
+  _select: number[][][]
+  _hover_select: number[][][]
 }
 
 
@@ -42,10 +39,10 @@ interface ModeLookup {
 
 
 const MODES: ModeLookup[] = [
-  {jsonKey: "normal", catKey: "normal"},
-  {jsonKey: "hover", catKey: "hover"},
-  {jsonKey: "select", catKey: "select"},
-  {jsonKey: "hover_select", catKey: "hoverSelect"},
+  {jsonKey: "_normal", catKey: "normal"},
+  {jsonKey: "_hover", catKey: "hover"},
+  {jsonKey: "_select", catKey: "select"},
+  {jsonKey: "_hover_select", catKey: "hoverSelect"},
 ]
 
 
@@ -117,10 +114,10 @@ export class TextureHandler {
 
   // getTileUVMap get the 3 vertex UV pair for the tile.
   getTileUVMap(tile: ClientTile, hexIndex: number, hover: boolean, select: boolean): number[][] {
-    const cat = tile.category || UNKNOWN_CATEGORY
-    const map = this.categories[cat] || this.categories[UNKNOWN_CATEGORY]
+    const cat = tile.category || CATEGORY_UNKNOWN
+    const map = this.categories[cat] || this.categories[CATEGORY_UNKNOWN]
     if (map === undefined) {
-      throw new Error(`no map asset ${UNKNOWN_CATEGORY} defined`)
+      throw new Error(`no map asset ${CATEGORY_UNKNOWN} defined`)
     }
     let sub = map.normal
     if (hover) {

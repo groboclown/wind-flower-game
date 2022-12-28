@@ -248,6 +248,7 @@ export class Grid3d {
   constructor(
     boardManager: GameBoardManager,
     texture: THREE.Texture,
+    bump: THREE.Texture,
     textureHandler: TextureHandler,
     visibleWidth: integer,   // in tiles, not tokens
     visibleHeight: integer,  // in tiles, not tokens
@@ -363,8 +364,10 @@ export class Grid3d {
     // MeshPhongMaterial
     // MeshLambertMaterial
     // MeshBasicMaterial - fastest/lowest quality
-    const material = new THREE.MeshBasicMaterial({
+    const material = new THREE.MeshPhongMaterial({
       map: texture,
+      bumpMap: bump,
+      bumpScale: 0.15,
       // specular: 0xaaaaaa,
       // shininess: 250,
       // metalness: 0.5,
@@ -680,8 +683,10 @@ export class Grid3d {
     this.tilePosGridTileIndex = {}
     this.tokenIdToSegmentTileIndex = {}
 
-    // TODO should this be stored as an instance variable, because we only
-    //   need to calculate it once?
+    // Total number of visible triangles.
+    //   This could be stored, as it only needs to be calculated once,
+    //   but there are so many other places to optimize before this has
+    //   any kind of impact on overal performance.
     const triangleCount = this.visibleWidth * this.visibleHeight
 
     // Vertex index
@@ -700,7 +705,13 @@ export class Grid3d {
     const uv = this.geometry.getAttribute('uv') as THREE.BufferAttribute
 
     // Loop across each segment.  This requires multiple passes on row/column.
-    // Care is taken to ensure the whole board is covered.
+    //   Care is taken to ensure the whole board is covered.
+    //   The algorithm moves from segment to segment, column increment then
+    //   row.  In each segment, the visible sub-set of tiles are looped over.
+    //   The internal grid index simply stores each tile as it's generated;
+    //   no attempt is made to match the grid index with the graphical
+    //   triangle position.  Instead, the vertex index lookup table performs
+    //   that mapping.
     // Full height calculation is done after generating the board.  The first
     //   pass sets up the grid -> token assignment which is used to discover
     //   adjacent height values.
@@ -750,7 +761,7 @@ export class Grid3d {
           const tile = segment.tiles[tileIdx]
 
           // Update pointers
-// console.log(`Grid ${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
+console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
           const gridTile = this.gridTiles[gridTileIndex]
           gridTile.segmentId = segment.segmentId
           gridTile.tileIndex = tileIdx
@@ -806,6 +817,7 @@ export class Grid3d {
           // -------------------------------
           // Update the mesh values
 
+console.debug(` ${crOdd}: (${ax}, ${az}), (${bx}, ${bz}), (${cx}, ${cz})`)
           // TODO it may be faster to avoid this hidden index lookup and instead
           //   do it ourselves, then perform an array copy at the end.
           //   That would mean the height (y) doesn't need to be messed with
@@ -832,8 +844,12 @@ export class Grid3d {
           if (col6 < 3) {
             hexIndex = col3 + (row2 * 3)
           } else {
-            hexIndex = col3 + (((row2 + 1) & 0x1) * 3)
+            // row 2 is either 0 or 1.  With the col6 >= 3, that means
+            // it's off by 1, and needs to drop.
+            hexIndex = col3 + ((1 - row2) * 3)
           }
+console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} : ${tile.category} : ${tile.tokenId}`)
+
 
           const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, false, false)
           uv.setXY(vertexIndex    , uvPos[0][0], uvPos[0][1])

@@ -373,7 +373,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x,
-              y: row + y,
+              y: row + y + odd,
               t: tokenId,
               p: [],
             })
@@ -381,7 +381,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x + 1,
-              y: row + y,
+              y: row + y + odd,
               t: tokenId,
               p: [],
             })
@@ -389,7 +389,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x + 2,
-              y: row + y,
+              y: row + y + odd,
               t: tokenId,
               p: [],
             })
@@ -397,7 +397,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x,
-              y: row + y + 1,
+              y: row + y + 1 + odd,
               t: tokenId,
               p: [],
             })
@@ -405,7 +405,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x + 1,
-              y: row + y + 1,
+              y: row + y + 1 + odd,
               t: tokenId,
               p: [],
             })
@@ -413,7 +413,7 @@ function hexTokensToSegment(
               c: category,
               h: token.height,
               x: col + x + 2,
-              y: row + y + 1,
+              y: row + y + 1 + odd,
               t: tokenId,
               p: [],
             })

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1000"
+   height="866"
+   viewBox="0 0 529.1667 458.25834"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="_hover.bump.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:zoom="0.84096521"
+     inkscape:cx="465.5365"
+     inkscape:cy="436.99786"
+     inkscape:window-width="1676"
+     inkscape:window-height="1026"
+     inkscape:window-x="0"
+     inkscape:window-y="20"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5" />
+  <defs
+     id="defs2">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 581.26462 : 1"
+       inkscape:vp_y="0 : 2000 : 0"
+       inkscape:vp_z="420.00001 : 581.26462 : 1"
+       inkscape:persp3d-origin="210 : 482.2646 : 1"
+       id="perspective240" />
+    <filter
+       inkscape:menu-tooltip="Bright metallic effect for any color"
+       inkscape:menu="Bevels"
+       inkscape:label="Bright Metal"
+       style="color-interpolation-filters:sRGB;"
+       id="filter2959"
+       x="-0.090799457"
+       y="-0.10474441"
+       width="1.1815989"
+       height="1.2094888">
+      <feGaussianBlur
+         result="result6"
+         stdDeviation="8"
+         in="SourceGraphic"
+         id="feGaussianBlur2939" />
+      <feComposite
+         in2="SourceGraphic"
+         in="result6"
+         operator="xor"
+         result="result10"
+         id="feComposite2941" />
+      <feGaussianBlur
+         result="result2"
+         stdDeviation="8"
+         id="feGaussianBlur2943" />
+      <feComposite
+         in2="SourceGraphic"
+         operator="atop"
+         in="result10"
+         result="result91"
+         id="feComposite2945" />
+      <feComposite
+         result="result4"
+         in="result2"
+         operator="xor"
+         in2="result91"
+         id="feComposite2947" />
+      <feGaussianBlur
+         in="result4"
+         result="result3"
+         stdDeviation="4"
+         id="feGaussianBlur2949" />
+      <feSpecularLighting
+         result="result5"
+         specularExponent="5"
+         specularConstant="1.1"
+         surfaceScale="18"
+         id="feSpecularLighting2953">
+        <feDistantLight
+           azimuth="235"
+           elevation="55"
+           id="feDistantLight2951" />
+      </feSpecularLighting>
+      <feComposite
+         in="result3"
+         k3="1.1"
+         k2="0.5"
+         operator="arithmetic"
+         result="result7"
+         in2="result5"
+         k1="0.5"
+         id="feComposite2955" />
+      <feComposite
+         in="result7"
+         operator="atop"
+         in2="SourceGraphic"
+         result="result8"
+         id="feComposite2957" />
+    </filter>
+  </defs>
+  <rect
+     style="opacity:0.95;fill:#000000;fill-opacity:1;stroke-width:1.00013;stroke-linecap:round;stroke-dasharray:none;paint-order:fill markers stroke"
+     id="rect2937"
+     width="564.06818"
+     height="479.1687"
+     x="-18.828604"
+     y="-14.514425" />
+  <path
+     style="fill:#434343;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.529167px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter2959)"
+     d="M 131.76251,0 0,228.60001 131.76251,458.25835 H 396.34585 L 528.63752,228.60001 396.34585,0 Z m 34.17982,52.39164 H 371.35202 L 474.05687,229.86505 371.35202,408.16012 H 165.94233 L 63.64883,229.86505 Z"
+     id="path1793" />
+</svg>

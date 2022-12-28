@@ -10,7 +10,7 @@ ENV N_PREFIX=/tmp/.n
 
 RUN echo "installing binary dependencies" \
     && apt-get update \
-    && apt-get install -y npm curl \
+    && apt-get install -y npm curl inkscape \
     && echo "complete"
 
 RUN echo "Setup user" \
