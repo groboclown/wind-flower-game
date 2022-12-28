@@ -24,12 +24,12 @@ export interface IntersectedTokenTile {
   tokenTile3: ClientTile | null
   tokenTile4: ClientTile | null
   tokenTile5: ClientTile | null
-  tileId0: integer
-  tileId1: integer
-  tileId2: integer
-  tileId3: integer
-  tileId4: integer
-  tileId5: integer
+  gridIndex0: integer
+  gridIndex1: integer
+  gridIndex2: integer
+  gridIndex3: integer
+  gridIndex4: integer
+  gridIndex5: integer
   segmentId: string // === EMPTY_SEGMENT_ID for not intersected.
   tokenId: integer | null
 }
@@ -43,12 +43,12 @@ export function createIntersectedTokenTile(): IntersectedTokenTile {
     tokenTile3: null,
     tokenTile4: null,
     tokenTile5: null,
-    tileId0: 0,
-    tileId1: 0,
-    tileId2: 0,
-    tileId3: 0,
-    tileId4: 0,
-    tileId5: 0,
+    gridIndex0: 0,
+    gridIndex1: 0,
+    gridIndex2: 0,
+    gridIndex3: 0,
+    gridIndex4: 0,
+    gridIndex5: 0,
     segmentId: EMPTY_SEGMENT_ID,
     tokenId: null,
   }
@@ -77,6 +77,11 @@ interface GridTileInfo {
   vertexA: integer
   vertexB: integer
   vertexC: integer
+
+  // The hexagon tile position
+  hexIndex: integer
+  hexColumn: integer
+  hexRow: integer
 }
 
 
@@ -336,6 +341,9 @@ export class Grid3d {
         vertexA: vertex++,
         vertexB: vertex++,
         vertexC: vertex++,
+        hexIndex: 0,
+        hexColumn: 0,
+        hexRow: 0,
       }
     }
 
@@ -367,7 +375,7 @@ export class Grid3d {
     const material = new THREE.MeshPhongMaterial({
       map: texture,
       bumpMap: bump,
-      bumpScale: 0.15,
+      bumpScale: 0.1,
       // specular: 0xaaaaaa,
       // shininess: 250,
       // metalness: 0.5,
@@ -405,72 +413,6 @@ export class Grid3d {
     // For now, just update the whole grid when the board updates.
     if (this.lastGridLoadId !== this.boardReq.getGameBoard().loadId) {
       this.updateGrid()
-    }
-  }
-
-
-  // updateTileTexture update the texture UV positions for the tile.
-  updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
-    if (intersection.tokenId === null) {
-      return
-    }
-
-    const uv = this.geometry.getAttribute('uv') as THREE.BufferAttribute
-    let uvMap: number[][]
-    let gt: GridTileInfo
-
-    // Optimization here:
-    // Because we know the vertex for a grid tile are allocated at the same time
-    //   (grid tile index === vertex index / 3), we can change the tile uv map
-    //   in memory to instead be the 6 points all in the same array.  That would be
-    //   a simple array copy, rather than a series of lookups.
-
-    if (intersection.tokenTile0 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId0]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
-    }
-
-    if (intersection.tokenTile1 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1, 1, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId1]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
-    }
-
-    if (intersection.tokenTile2 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2, 2, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId2]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
-    }
-
-    if (intersection.tokenTile3 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3, 3, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId3]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
-    }
-
-    if (intersection.tokenTile4 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4, 4, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId4]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
-    }
-
-    if (intersection.tokenTile5 !== null) {
-      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5, 5, mode.hoverOver, mode.selected)
-      gt = this.gridTiles[intersection.tileId5]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
     }
   }
 
@@ -763,6 +705,8 @@ export class Grid3d {
           // Update pointers
 console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
           const gridTile = this.gridTiles[gridTileIndex]
+          gridTile.x = col
+          gridTile.y = row
           gridTile.segmentId = segment.segmentId
           gridTile.tileIndex = tileIdx
           if (tile.tokenId !== null) {
@@ -847,9 +791,12 @@ console.debug(` ${crOdd}: (${ax}, ${az}), (${bx}, ${bz}), (${cx}, ${cz})`)
             // row 2 is either 0 or 1.  With the col6 >= 3, that means
             // it's off by 1, and needs to drop.
             hexIndex = col3 + ((1 - row2) * 3)
+            row2--
           }
 console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} : ${tile.category} : ${tile.tokenId}`)
-
+          gridTile.hexIndex = hexIndex
+          gridTile.hexColumn = col3
+          gridTile.hexRow = row2
 
           const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, false, false)
           uv.setXY(vertexIndex    , uvPos[0][0], uvPos[0][1])
@@ -1031,24 +978,26 @@ console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} 
 
     // TODO the "|| (something)" code here is due to a bad rendering
     //   Once the code is rendering right, this shouldn't be a problem... right?
+    const hexCol0 = grid.x - grid.hexColumn
+    const hexRow0 = grid.y - grid.hexRow
 
-    intersection.tileId0 = tileIdxList[0] || -1
-    intersection.tokenTile0 = segment.tiles[intersection.tileId0] || null
+    intersection.gridIndex0 = this.tilePosGridTileIndex[hexRow0][hexCol0]
+    intersection.tokenTile0 = segment.tiles[tileIdxList[0]] || null
 
-    intersection.tileId1 = tileIdxList[1] || -1
-    intersection.tokenTile1 = segment.tiles[intersection.tileId1] || null
+    intersection.gridIndex1 = this.tilePosGridTileIndex[hexRow0][hexCol0 + 1]
+    intersection.tokenTile1 = segment.tiles[tileIdxList[1]] || null
 
-    intersection.tileId2 = tileIdxList[2] || -1
-    intersection.tokenTile2 = segment.tiles[intersection.tileId2] || null
+    intersection.gridIndex2 = this.tilePosGridTileIndex[hexRow0][hexCol0 + 2]
+    intersection.tokenTile2 = segment.tiles[tileIdxList[2]] || null
 
-    intersection.tileId3 = tileIdxList[3] || -1
-    intersection.tokenTile3 = segment.tiles[intersection.tileId3] || null
+    intersection.gridIndex3 = this.tilePosGridTileIndex[hexRow0 + 1][hexCol0]
+    intersection.tokenTile3 = segment.tiles[tileIdxList[3]] || null
 
-    intersection.tileId4 = tileIdxList[4] || -1
-    intersection.tokenTile4 = segment.tiles[intersection.tileId4] || null
+    intersection.gridIndex4 = this.tilePosGridTileIndex[hexRow0 + 1][hexCol0 + 1]
+    intersection.tokenTile4 = segment.tiles[tileIdxList[4]] || null
 
-    intersection.tileId5 = tileIdxList[5] || -1
-    intersection.tokenTile5 = segment.tiles[intersection.tileId5] || null
+    intersection.gridIndex5 = this.tilePosGridTileIndex[hexRow0 + 1][hexCol0 + 2]
+    intersection.tokenTile5 = segment.tiles[tileIdxList[5]] || null
   }
 
 
@@ -1060,21 +1009,94 @@ console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} 
     if (this.object !== null) {
       this.coords.x = clientX
       this.coords.y = clientY
+      // console.log(`Checking for intersection with screen at ${clientX}, ${clientY}`)
       this.raycaster.setFromCamera(this.coords, camera)
       const intersects = this.raycaster.intersectObject(this.object)
       if (intersects.length > 0) {
         const intersect = intersects[0]
         const face = intersect.face
         if (face) {
+          // console.log(` - Intersected face ${face.a}, ${face.b}, ${face.c}`)
           const gridIndex = this.vertexIndexToGridTileIndex[face.a]
           if (gridIndex !== undefined) {
+            // console.log(` - => ${gridIndex}`)
             this.loadGridTileTokens(gridIndex, intersection)
             return
           }
+          // console.log(` - No grid set for face`)
         }
       }
     }
     intersection.segmentId = EMPTY_SEGMENT_ID
+    intersection.tokenId = null
+  }
+
+
+  // updateTileTexture update the texture UV positions for the tile.
+  updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
+    if (intersection.tokenId === null) {
+      return
+    }
+
+    const uv = this.geometry.getAttribute('uv') as THREE.BufferAttribute
+    let uvMap: number[][]
+    let gt: GridTileInfo
+
+    // TODO Optimization here:
+    // Because we know the vertex for a grid tile are allocated at the same time
+    //   (grid tile index === vertex index / 3), we can change the tile uv map
+    //   in memory to instead be the 6 points all in the same array.  That would be
+    //   a simple array copy, rather than a series of lookups.
+
+    if (intersection.tokenTile0 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex0]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile1 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile1, 1, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex1]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile2 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile2, 2, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex2]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile3 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile3, 3, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex3]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile4 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile4, 4, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex4]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    if (intersection.tokenTile5 !== null) {
+      uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile5, 5, mode.hoverOver, mode.selected)
+      gt = this.gridTiles[intersection.gridIndex5]
+      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+    }
+
+    uv.needsUpdate = true
   }
 
 

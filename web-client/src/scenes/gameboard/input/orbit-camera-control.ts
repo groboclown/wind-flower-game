@@ -7,7 +7,7 @@ import {
 } from 'three'
 import { CameraControl } from './camera-control'
 
-const EPS = 0.000001;
+const EPS = 0.000001
 
 
 
@@ -24,63 +24,66 @@ export class OrbitCameraControl implements CameraControl {
   private perspCamera: PerspectiveCamera | null
 
   // API
-  enabled: boolean;
-  target: Vector3;
+  enabled: boolean
+  target: Vector3
 
-  minDistance: number;
-  maxDistance: number;
+  minDistance: number
+  maxDistance: number
 
-  minZoom: number;
-  maxZoom: number;
+  minZoom: number
+  maxZoom: number
 
-  minPolarAngle: number;
-  maxPolarAngle: number;
+  minPolarAngle: number
+  maxPolarAngle: number
 
-  minAzimuthAngle: number;
-  maxAzimuthAngle: number;
+  minAzimuthAngle: number
+  maxAzimuthAngle: number
 
-  enableDamping: boolean;
-  dampingFactor: number;
+  enableDamping: boolean
+  dampingFactor: number
 
-  enableZoom: boolean;
-  zoomSpeed: number;
+  enableZoom: boolean
+  zoomSpeed: number
 
-  enableRotate: boolean;
-  rotateSpeed: number;
+  enableRotate: boolean
+  rotateSpeed: number
 
-  enablePan: boolean;
-  panSpeed: number;
-  screenSpacePanning: boolean;
-  keyPanSpeed: number;
+  enablePan: boolean
+  panSpeed: number
+  screenSpacePanning: boolean
+  keyPanSpeed: number
 
-  autoRotate: boolean;
-  autoRotateSpeed: number;
+  autoRotate: boolean
+  autoRotateSpeed: number
+
 
   private target0: Vector3
   private position0: Vector3
   private zoom0: number
   private targetMin: Vector3
   private targetMax: Vector3
+  private positionMin: Vector3
+  private positionMax: Vector3
 
   // current position in spherical coordinates
-  private spherical: Spherical = new Spherical();
-  private sphericalDelta: Spherical = new Spherical();
+  private spherical: Spherical = new Spherical()
+  private sphericalDelta: Spherical = new Spherical()
 
-  private scale: number = 1;
-  private panOffset: Vector3 = new Vector3();
-  private zoomChanged: boolean = false;
+  private scale: number = 1
+  private panOffset: Vector3 = new Vector3()
+  private zoomChanged: boolean = false
 
-  private rotateStart = new Vector2();
-  private rotateEnd = new Vector2();
-  private rotateDelta = new Vector2();
+  private rotateStart = new Vector2()
+  private rotateEnd = new Vector2()
+  private rotateDelta = new Vector2()
 
-  private panStart = new Vector2();
-  private panEnd = new Vector2();
-  private panDelta = new Vector2();
+  private panStart = new Vector2()
+  private panEnd = new Vector2()
+  private panDelta = new Vector2()
 
-  private dollyStart = new Vector2();
-  private dollyEnd = new Vector2();
-  private dollyDelta = new Vector2();
+  private dollyStart = new Vector2()
+  private dollyEnd = new Vector2()
+  private dollyDelta = new Vector2()
 
   constructor(camera: Camera) {
     // Set to false to disable panning
@@ -111,151 +114,153 @@ export class OrbitCameraControl implements CameraControl {
     this.target = new Vector3()
     this.targetMin = new Vector3(-Infinity, -Infinity, -Infinity)
     this.targetMax = new Vector3(Infinity, Infinity, Infinity)
+    this.positionMin = new Vector3(-Infinity, -Infinity, -Infinity)
+    this.positionMax = new Vector3(Infinity, Infinity, Infinity)
 
     // How far you can dolly in and out ( PerspectiveCamera only )
-    this.minDistance = 0;
-    this.maxDistance = Infinity;
+    this.minDistance = 0
+    this.maxDistance = Infinity
 
     // How far you can zoom in and out ( OrthographicCamera only )
-    this.minZoom = 0;
-    this.maxZoom = Infinity;
+    this.minZoom = 0
+    this.maxZoom = Infinity
 
     // How far you can orbit vertically, upper and lower limits.
     // Range is 0 to Math.PI radians.
-    this.minPolarAngle = 0; // radians
-    this.maxPolarAngle = Math.PI; // radians
+    this.minPolarAngle = 0  // radians
+    this.maxPolarAngle = Math.PI  // radians
 
     // How far you can orbit horizontally, upper and lower limits.
     // If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
-    this.minAzimuthAngle = - Infinity; // radians
-    this.maxAzimuthAngle = Infinity; // radians
+    this.minAzimuthAngle = - Infinity  // radians
+    this.maxAzimuthAngle = Infinity  // radians
 
     // Set to true to enable damping (inertia)
     // If damping is enabled, you must call controls.update() in your animation loop
-    this.enableDamping = false;
-    this.dampingFactor = 0.05;
+    this.enableDamping = false
+    this.dampingFactor = 0.05
 
     // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-    this.zoomSpeed = 1.0;
+    this.zoomSpeed = 1.0
 
     // Set to false to disable rotating
-    this.enableRotate = true;
-    this.rotateSpeed = 1.0;
+    this.enableRotate = true
+    this.rotateSpeed = 1.0
 
     // Set to false to disable panning
-    this.panSpeed = 1.0;
-    this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
-    this.keyPanSpeed = 7.0;	// pixels moved per arrow key push
+    this.panSpeed = 1.0
+    this.screenSpacePanning = true  // if false, pan orthogonal to world-space direction camera.up
+    this.keyPanSpeed = 7.0 	// pixels moved per arrow key push
 
     // Set to true to automatically rotate around the target
     // If auto-rotate is enabled, you must call controls.update() in your animation loop
-    this.autoRotate = false;
-    this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+    this.autoRotate = false
+    this.autoRotateSpeed = 2.0  // 30 seconds per orbit when fps is 60
 
     // for reset
-    this.target0 = this.target.clone();
-    this.position0 = camera.position.clone();
-    this.zoom0 = this.getCameraZoom();
+    this.target0 = this.target.clone()
+    this.position0 = camera.position.clone()
+    this.zoom0 = this.getCameraZoom()
 
     // force an update at start
-    this.update();
+    this.update()
   }
 
 
   update(): boolean {
-    const offset = new Vector3();
+    const offset = new Vector3()
 
     // so camera.up is the orbit axis
-    const quat = new Quaternion().setFromUnitVectors(this.camera.up, new Vector3(0, 1, 0));
-    const quatInverse = quat.clone().invert();
+    const quat = new Quaternion().setFromUnitVectors(this.camera.up, new Vector3(0, 1, 0))
+    const quatInverse = quat.clone().invert()
 
-    const lastPosition = new Vector3();
-    const lastQuaternion = new Quaternion();
+    const lastPosition = new Vector3()
+    const lastQuaternion = new Quaternion()
 
-    const twoPI = 2 * Math.PI;
+    const twoPI = 2 * Math.PI
 
-    const position = this.camera.position;
+    const position = this.camera.position
 
-    offset.copy(position).sub(this.target);
+    offset.copy(position).sub(this.target)
 
     // rotate offset to "y-axis-is-up" space
-    offset.applyQuaternion(quat);
+    offset.applyQuaternion(quat)
 
     // angle from z-axis around y-axis
-    this.spherical.setFromVector3(offset);
+    this.spherical.setFromVector3(offset)
 
     if (this.autoRotate) {
-      this.rotateLeft(this.getAutoRotationAngle());
+      this.rotateLeft(this.getAutoRotationAngle())
     }
 
     if (this.enableDamping) {
-      this.spherical.theta += this.sphericalDelta.theta * this.dampingFactor;
-      this.spherical.phi += this.sphericalDelta.phi * this.dampingFactor;
+      this.spherical.theta += this.sphericalDelta.theta * this.dampingFactor
+      this.spherical.phi += this.sphericalDelta.phi * this.dampingFactor
     } else {
-      this.spherical.theta += this.sphericalDelta.theta;
-      this.spherical.phi += this.sphericalDelta.phi;
+      this.spherical.theta += this.sphericalDelta.theta
+      this.spherical.phi += this.sphericalDelta.phi
     }
 
     // restrict theta to be between desired limits
 
-    let min = this.minAzimuthAngle;
-    let max = this.maxAzimuthAngle;
+    let min = this.minAzimuthAngle
+    let max = this.maxAzimuthAngle
 
     if (isFinite(min) && isFinite(max)) {
-      if (min < - Math.PI) min += twoPI; else if (min > Math.PI) min -= twoPI;
-      if (max < - Math.PI) max += twoPI; else if (max > Math.PI) max -= twoPI;
+      if (min < - Math.PI) min += twoPI; else if (min > Math.PI) min -= twoPI
+      if (max < - Math.PI) max += twoPI; else if (max > Math.PI) max -= twoPI
 
       if (min <= max) {
-        this.spherical.theta = Math.max(min, Math.min(max, this.spherical.theta));
+        this.spherical.theta = Math.max(min, Math.min(max, this.spherical.theta))
       } else {
         this.spherical.theta = (this.spherical.theta > (min + max) / 2) ?
           Math.max(min, this.spherical.theta) :
-          Math.min(max, this.spherical.theta);
+          Math.min(max, this.spherical.theta)
       }
     }
 
     // restrict phi to be between desired limits
-    this.spherical.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.spherical.phi));
+    this.spherical.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.spherical.phi))
 
-    this.spherical.makeSafe();
+    this.spherical.makeSafe()
 
-    this.spherical.radius *= this.scale;
+    this.spherical.radius *= this.scale
 
     // restrict radius to be between desired limits
-    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius))
 
     // move target to panned location
 
     if (this.enableDamping === true) {
-      this.target.addScaledVector(this.panOffset, this.dampingFactor);
+      this.target.addScaledVector(this.panOffset, this.dampingFactor)
     } else {
-      this.target.add(this.panOffset);
+      this.target.add(this.panOffset)
     }
     this.target.set(
       Math.max(this.targetMin.x, Math.min(this.targetMax.x, this.target.x)),
       Math.max(this.targetMin.y, Math.min(this.targetMax.y, this.target.y)),
       Math.max(this.targetMin.z, Math.min(this.targetMax.z, this.target.z)))
 
-    offset.setFromSpherical(this.spherical);
+    offset.setFromSpherical(this.spherical)
 
     // rotate offset back to "camera-up-vector-is-up" space
-    offset.applyQuaternion(quatInverse);
+    offset.applyQuaternion(quatInverse)
 
-    position.copy(this.target).add(offset);
+    position.copy(this.target).add(offset)
 
-    this.camera.lookAt(this.target);
+    this.camera.lookAt(this.target)
 
     if (this.enableDamping === true) {
-      this.sphericalDelta.theta *= (1 - this.dampingFactor);
-      this.sphericalDelta.phi *= (1 - this.dampingFactor);
+      this.sphericalDelta.theta *= (1 - this.dampingFactor)
+      this.sphericalDelta.phi *= (1 - this.dampingFactor)
 
-      this.panOffset.multiplyScalar(1 - this.dampingFactor);
+      this.panOffset.multiplyScalar(1 - this.dampingFactor)
     } else {
-      this.sphericalDelta.set(0, 0, 0);
-      this.panOffset.set(0, 0, 0);
+      this.sphericalDelta.set(0, 0, 0)
+      this.panOffset.set(0, 0, 0)
     }
 
-    this.scale = 1;
+    this.scale = 1
 
     // update condition is:
     // min(camera displacement, camera rotation in radians)^2 > EPS
@@ -265,20 +270,20 @@ export class OrbitCameraControl implements CameraControl {
         lastPosition.distanceToSquared(this.camera.position) > EPS ||
         8 * (1 - lastQuaternion.dot(this.camera.quaternion)) > EPS) {
 
-      lastPosition.copy(this.camera.position);
-      lastQuaternion.copy(this.camera.quaternion);
-      this.zoomChanged = false;
+      lastPosition.copy(this.camera.position)
+      lastQuaternion.copy(this.camera.quaternion)
+      this.zoomChanged = false
 
-      return true;
+      return true
     }
 
-    return false;
+    return false
   }
 
   saveState(): void {
-    this.target0.copy(this.target);
-    this.position0.copy(this.camera.position);
-    this.zoom0 = this.getCameraZoom();
+    this.target0.copy(this.target)
+    this.position0.copy(this.camera.position)
+    this.zoom0 = this.getCameraZoom()
   }
 
   reset(): void {
@@ -286,10 +291,10 @@ export class OrbitCameraControl implements CameraControl {
     this.camera.position.copy(this.position0)
     if (this.perspCamera !== null) {
       this.perspCamera.zoom = this.zoom0
-      this.perspCamera.updateProjectionMatrix();
+      this.perspCamera.updateProjectionMatrix()
     } else if (this.orthoCamera !== null) {
       this.orthoCamera.zoom = this.zoom0
-      this.orthoCamera.updateProjectionMatrix();
+      this.orthoCamera.updateProjectionMatrix()
     }
 
     this.update();
@@ -359,47 +364,47 @@ export class OrbitCameraControl implements CameraControl {
   }
 
   private getAutoRotationAngle(): number {
-    return 2 * Math.PI / 60 / 60 * this.autoRotateSpeed;
+    return 2 * Math.PI / 60 / 60 * this.autoRotateSpeed
   }
 
   private getZoomScale() {
-    return Math.pow(0.95, this.zoomSpeed);
+    return Math.pow(0.95, this.zoomSpeed)
   }
 
   private rotateLeft(angle: number) {
-    this.sphericalDelta.theta -= angle;
+    this.sphericalDelta.theta -= angle
   }
 
   private rotateUp(angle: number) {
-    this.sphericalDelta.phi -= angle;
+    this.sphericalDelta.phi -= angle
   }
 
   private panLeft(distance: number, objectMatrix: Matrix4) {
     const v = new Vector3();
-    v.setFromMatrixColumn(objectMatrix, 0); // get X column of objectMatrix
-    v.multiplyScalar(- distance);
-    this.panOffset.add(v);
+    v.setFromMatrixColumn(objectMatrix, 0)  // get X column of objectMatrix
+    v.multiplyScalar(- distance)
+    this.panOffset.add(v)
   }
 
   private panUp(distance: number, objectMatrix: Matrix4) {
-    const v = new Vector3();
+    const v = new Vector3()
 
     if (this.screenSpacePanning === true) {
-      v.setFromMatrixColumn(objectMatrix, 1);
+      v.setFromMatrixColumn(objectMatrix, 1)
     } else {
-      v.setFromMatrixColumn(objectMatrix, 0);
-      v.crossVectors(this.camera.up, v);
+      v.setFromMatrixColumn(objectMatrix, 0)
+      v.crossVectors(this.camera.up, v)
     }
 
-    v.multiplyScalar(distance);
+    v.multiplyScalar(distance)
 
-    this.panOffset.add(v);
+    this.panOffset.add(v)
   }
 
 
   // deltaX and deltaY are in pixels; right and down are positive
   private pan(deltaX: number, deltaY: number, clientWidth: integer, clientHeight: integer) {
-    const offset = new Vector3();
+    const offset = new Vector3()
 
     if (this.perspCamera !== null) {
 
@@ -409,16 +414,16 @@ export class OrbitCameraControl implements CameraControl {
       let targetDistance = offset.length()
 
       // half of the fov is center to top of screen
-      targetDistance *= Math.tan((this.perspCamera.fov / 2) * Math.PI / 180.0);
+      targetDistance *= Math.tan((this.perspCamera.fov / 2) * Math.PI / 180.0)
 
       // we use only clientHeight here so aspect ratio does not distort speed
-      this.panLeft(2 * deltaX * targetDistance / clientHeight, this.perspCamera.matrix);
-      this.panUp(2 * deltaY * targetDistance / clientHeight, this.perspCamera.matrix);
+      this.panLeft(2 * deltaX * targetDistance / clientHeight, this.perspCamera.matrix)
+      this.panUp(2 * deltaY * targetDistance / clientHeight, this.perspCamera.matrix)
 
     } else if (this.orthoCamera !== null) {
       // orthographic
-      this.panLeft(deltaX * (this.orthoCamera.right - this.orthoCamera.left) / this.orthoCamera.zoom / clientWidth, this.orthoCamera.matrix);
-      this.panUp(deltaY * (this.orthoCamera.top - this.orthoCamera.bottom) / this.orthoCamera.zoom / clientHeight, this.orthoCamera.matrix);
+      this.panLeft(deltaX * (this.orthoCamera.right - this.orthoCamera.left) / this.orthoCamera.zoom / clientWidth, this.orthoCamera.matrix)
+      this.panUp(deltaY * (this.orthoCamera.top - this.orthoCamera.bottom) / this.orthoCamera.zoom / clientHeight, this.orthoCamera.matrix)
     }
   }
 
@@ -426,21 +431,21 @@ export class OrbitCameraControl implements CameraControl {
 
   private dollyOut(dollyScale: number) {
     if (this.perspCamera !== null) {
-      this.scale /= dollyScale;
+      this.scale /= dollyScale
     } else if (this.orthoCamera !== null) {
-      this.orthoCamera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.orthoCamera.zoom * dollyScale));
-      this.orthoCamera.updateProjectionMatrix();
-      this.zoomChanged = true;
+      this.orthoCamera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.orthoCamera.zoom * dollyScale))
+      this.orthoCamera.updateProjectionMatrix()
+      this.zoomChanged = true
     }
   }
 
   private dollyIn(dollyScale: number) {
     if (this.perspCamera !== null) {
-      this.scale *= dollyScale;
+      this.scale *= dollyScale
     } else if (this.orthoCamera !== null) {
-      this.orthoCamera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.orthoCamera.zoom / dollyScale));
-      this.orthoCamera.updateProjectionMatrix();
-      this.zoomChanged = true;
+      this.orthoCamera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.orthoCamera.zoom / dollyScale))
+      this.orthoCamera.updateProjectionMatrix()
+      this.zoomChanged = true
     }
   }
 
@@ -450,87 +455,82 @@ export class OrbitCameraControl implements CameraControl {
 
   // an action to start rotation.  Rotates the camera around the target
   eventRotateStart(clientX: integer, clientY: integer): void {
-    this.rotateStart.set(clientX, clientY);
+    this.rotateStart.set(clientX, clientY)
   }
 
   // continue to rotate based on the rotation start.
   eventRotateMove(clientX: integer, clientY: integer, _clientWidth: integer, clientHeight: integer): void {
-    this.rotateEnd.set(clientX, clientY);
-
-    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart).multiplyScalar(this.rotateSpeed);
-
-    this.rotateLeft(2 * Math.PI * this.rotateDelta.x / clientHeight); // yes, height
-
-    this.rotateUp(2 * Math.PI * this.rotateDelta.y / clientHeight);
-
-    this.rotateStart.copy(this.rotateEnd);
-
-    this.update();
+    this.rotateEnd.set(clientX, clientY)
+    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart).multiplyScalar(this.rotateSpeed)
+    this.rotateLeft(2 * Math.PI * this.rotateDelta.x / clientHeight)  // yes, height
+    this.rotateUp(2 * Math.PI * this.rotateDelta.y / clientHeight)
+    this.rotateStart.copy(this.rotateEnd)
+    this.update()
   }
 
   // move the camera forward & backwards
   eventDollyStart(clientX: integer, clientY: integer): void {
-    this.dollyStart.set(clientX, clientY);
+    this.dollyStart.set(clientX, clientY)
 
   }
 
 
   eventDollyMove(clientX: integer, clientY: integer): void {
-    this.dollyEnd.set(clientX, clientY);
-    this.dollyDelta.subVectors(this.dollyEnd, this.dollyStart);
+    this.dollyEnd.set(clientX, clientY)
+    this.dollyDelta.subVectors(this.dollyEnd, this.dollyStart)
 
     if (this.dollyDelta.y > 0) {
-      this.dollyOut(this.getZoomScale());
+      this.dollyOut(this.getZoomScale())
     } else if (this.dollyDelta.y < 0) {
-      this.dollyIn(this.getZoomScale());
+      this.dollyIn(this.getZoomScale())
     }
 
-    this.dollyStart.copy(this.dollyEnd);
-    this.update();
+    this.dollyStart.copy(this.dollyEnd)
+    this.update()
   }
 
 
   // move the camera left & right
   eventPanStart(clientX: integer, clientY: integer): void {
-    this.panStart.set(clientX, clientY);
+    this.panStart.set(clientX, clientY)
 
   }
 
   eventPanMove(clientX: integer, clientY: integer, clientWidth: integer, clientHeight: integer): void {
-    this.panEnd.set(clientX, clientY);
-    this.panDelta.subVectors(this.panEnd, this.panStart).multiplyScalar(this.panSpeed);
-    this.pan(this.panDelta.x, this.panDelta.y, clientWidth, clientHeight);
-    this.panStart.copy(this.panEnd);
-    this.update();
+    this.panEnd.set(clientX, clientY)
+    this.panDelta.subVectors(this.panEnd, this.panStart).multiplyScalar(this.panSpeed)
+    this.pan(this.panDelta.x, this.panDelta.y, clientWidth, clientHeight)
+    this.panStart.copy(this.panEnd)
+    this.update()
   }
 
   eventZoom(deltaY: integer): void {
     if (deltaY < 0) {
-      this.dollyIn(this.getZoomScale());
+      this.dollyIn(this.getZoomScale())
     } else if (deltaY > 0) {
-      this.dollyOut(this.getZoomScale());
+      this.dollyOut(this.getZoomScale())
     }
-    this.update();
+    this.update()
   }
 
   eventPanUp(clientWidth: integer, clientHeight: integer): void {
-    this.pan(0, this.keyPanSpeed, clientWidth, clientHeight);
-    this.update();
+    this.pan(0, this.keyPanSpeed, clientWidth, clientHeight)
+    this.update()
   }
 
   eventPanDown(clientWidth: integer, clientHeight: integer): void {
-    this.pan(0, - this.keyPanSpeed, clientWidth, clientHeight);
-    this.update();
+    this.pan(0, - this.keyPanSpeed, clientWidth, clientHeight)
+    this.update()
   }
 
   eventPanLeft(clientWidth: integer, clientHeight: integer): void {
-    this.pan(this.keyPanSpeed, 0, clientWidth, clientHeight);
-    this.update();
+    this.pan(this.keyPanSpeed, 0, clientWidth, clientHeight)
+    this.update()
   }
 
   eventPanRight(clientWidth: integer, clientHeight: integer): void {
-    this.pan(- this.keyPanSpeed, 0, clientWidth, clientHeight);
-    this.update();
+    this.pan(- this.keyPanSpeed, 0, clientWidth, clientHeight)
+    this.update()
   }
 
   eventRotateClockwise(_clientWidth: integer, _clientHeight: integer): void {

@@ -54,8 +54,10 @@ function initialClientPlayerState(): ClientPlayerState {
       exists: false,
       defaultGameName: '',
       defaultTileTheme: '',
-      visibleWidth: 30,
-      visibleHeight: 30,
+
+      // Note: width is 3 * token count, height is 2 * token count.
+      visibleWidth: 40,  // 30 is a good number.  40 is for testing.
+      visibleHeight: 60,  // 30 is a good number.  60 is for testing.
 
     },
     server: {

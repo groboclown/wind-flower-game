@@ -167,6 +167,23 @@ export default class GameBoardScene extends Scene3D {
     if (this.controls !== null && this.grid3d !== null) {
       this.controls.onUpdate()
       this.grid3d.updateGridAtTarget(this.controls.getTarget())
+      // Ensure the selection & hover is set correctly.
+
+      // FIXME In order for this to work, the hover & select tokens must be
+      //   updated with the grid data.
+
+      //if (this.hoverToken.tokenId !== null) {
+      //  this.grid3d.updateTileTexture(
+      //    this.hoverToken,
+      //    { hoverOver: true, selected: this.hoverToken.tokenId === this.selectToken.tokenId },
+      //  )
+      //}
+      //if (this.selectToken.tokenId !== null && this.hoverToken.tokenId !== this.selectToken.tokenId) {
+      //  this.grid3d.updateTileTexture(
+      //    this.selectToken,
+      //    { hoverOver: false, selected: true },
+      //  )
+      //}
     }
 	}
 
