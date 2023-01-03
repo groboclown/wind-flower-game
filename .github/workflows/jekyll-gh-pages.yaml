@@ -25,8 +25,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Pull latest sources.
       - name: Checkout
         uses: actions/checkout@v3
+
+      # Install required tools.
+      - name: Install Required tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install inkscape
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Setup the primary web files.
       - name: Setup Pages
         uses: actions/configure-pages@v2
       - name: Build with Jekyll
@@ -36,16 +49,20 @@ jobs:
           # This generated directory is root-owned,
           #   so we won't be able to augment it with
           #   later stuff.
+          # Therefore, we put it into a temporary location.
           destination: ./_jekyll_site
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
+
+      # Setup the sample client for use with github pages.
+      - name: Build public images.
+        run: |
+          bin/generate-public-images.sh
       - name: Build web client
-        # Need to build the client for use with github pages.
         run: |
           ( cd web-client && npm install )
           ( cd web-client && npm run pages-build )
+
+      # Pull the two set of public documents together into one place,
+      #   for deploying into the public site.
       - name: Assemble Documents
         run: |
           mkdir -p _site

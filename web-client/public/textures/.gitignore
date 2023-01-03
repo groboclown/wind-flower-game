@@ -1,0 +1,5 @@
+# These files are generated, as they are very large and
+# don't belong in source control.
+
+*.png
+*.json
