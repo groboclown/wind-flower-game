@@ -7,6 +7,7 @@ export * from './state'
 export * from './events'
 export * from './manager'
 export * from './sort'
+export * from './asset-names'
 
 
 import { HostApi } from '../server/api'

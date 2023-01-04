@@ -40,8 +40,12 @@ const EMPTY_TILE: ClientTile = {
   height: -2,
   parameters: {},
 
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  // Not used by the old grid.
+  tokenHexTileIndex: 0,
+  adjacentTokenTileCount: 0,
+  vertexHeight: [0, 0, 0],
+  vertexHeightSum: [0, 0, 0],
+  vertexHeightCount: [0, 0, 0],
 }
 
 

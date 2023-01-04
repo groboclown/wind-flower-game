@@ -1,7 +1,4 @@
 // Generate test game board data.
-import {
-	ClientTile,
-} from '../../gameboard-state'
 import { JsonLookup, JSONValueType } from '../../lib/typed-json'
 import { RestApiConnection } from '../../server/api'
 import { SegmentTile } from '../../server/structs'
@@ -11,6 +8,14 @@ import { SegmentTile } from '../../server/structs'
 export const MAX_RETURNED_WIDTH = 12
 // Must be a multiple of 2
 export const MAX_RETURNED_HEIGHT = 14
+
+
+interface TestTile {
+  tokenId: integer,
+  category: string | null,
+  height: number,
+  variation: integer,
+}
 
 
 export class TestDataGeneratorApiConnection implements RestApiConnection {
@@ -123,7 +128,7 @@ export function createAlternatingTokenSegment(
   size: BoardSize,
   startIndex: number,
   heightType: integer,
-): (ClientTile | null)[] {
+): (TestTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
@@ -141,7 +146,7 @@ export function createAlternatingEmptyTokenSegment(
   size: BoardSize,
   startIndex: number,
   heightType: integer,
-): (ClientTile | null)[] {
+): (TestTile | null)[] {
   const tokens = createNullTokenSegment(size)
   const tokenSize = getTokenBoardSize(size)
   for (let i = 0; i < tokens.length; i++) {
@@ -204,9 +209,9 @@ function calculateHeight(tokenIndex: number, tokenBoardSize: BoardSize, heightTy
 
 function createNullTokenSegment(
   size: BoardSize,
-): (ClientTile | null)[] {
+): (TestTile | null)[] {
   const tokenSize = getTokenBoardSize(size)
-  const tokens = new Array<ClientTile | null>(tokenSize.width * tokenSize.height)
+  const tokens = new Array<TestTile | null>(tokenSize.width * tokenSize.height)
   return tokens
 }
 
@@ -225,106 +230,75 @@ function getTokenBoardSize(
   return { width: tokenWidth, height: tokenHeight | 0 }
 }
 
-export const EMPTY_TILE: ClientTile = {
-  tokenId: null,
+export const EMPTY_TILE: TestTile = {
   category: null,
   variation: 0,
   height: -2,
-  parameters: {},
-
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
 
-const RED_TILE: ClientTile = {
+const RED_TILE: TestTile = {
   category: 'red',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const GREEN_TILE: ClientTile = {
+const GREEN_TILE: TestTile = {
   category: 'green',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const BLUE_TILE: ClientTile = {
+const BLUE_TILE: TestTile = {
   category: 'blue',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const YELLOW_TILE: ClientTile = {
+const YELLOW_TILE: TestTile = {
   category: 'yellow',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const CYAN_TILE: ClientTile = {
+const CYAN_TILE: TestTile = {
   category: 'cyan',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const MAGENTA_TILE: ClientTile = {
+const MAGENTA_TILE: TestTile = {
   category: 'magenta',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const MOUNTAIN_TILE: ClientTile = {
+const MOUNTAIN_TILE: TestTile = {
   category: 'mountain',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const WATER_TILE: ClientTile = {
+const WATER_TILE: TestTile = {
   category: 'water',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
-const DESERT_TILE: ClientTile = {
+const DESERT_TILE: TestTile = {
   category: 'desert',
   variation: 0,
   height: 0,
-  tokenId: null,
-  parameters: [],
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
+  tokenId: 0,
 }
 
 const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE, DESERT_TILE]
@@ -343,7 +317,7 @@ function hexTokensToSegment(
   size: BoardSize,
   x: number, y: number,
   tokenIdCounter: integer[],
-  tokens: (ClientTile | null)[],
+  tokens: (TestTile | null)[],
 ): SegmentTile[] {
   const tokenSize = getTokenBoardSize(size)
   const tokenWidth = tokenSize.width

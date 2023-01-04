@@ -54,23 +54,21 @@ export interface SegmentChange {
 
 
 export interface ServerTurnCompleted {
-  completedPlayerTurn: number
-  nextPlayerTurn: number
+  completedPlayerTurn: integer
+  nextPlayerTurn: integer
 
   // UTC datetime
   turnCompletedAt: string
 
   // Which token was played?
   tokenPlayed: {
-    x: number
-    y: number
+    x: integer
+    y: integer
     z: number
     category: string
     parameters: {
-      parameterIndex: number
-      quantity: number
-      x: number
-      y: number
+      parameterIndex: integer
+      quantity: integer
     }[]
   }
 
@@ -93,12 +91,39 @@ export interface ServerTurnCompleted {
 }
 
 
+// ServerParameters server limitations
 export interface ServerParameters {
   // Possible future enhancements:
   //   Game Modes Supported
 
   //   Maximum number of players in a game
 
+  // maximumTileWidth Maximum count of tiles along the x-axis to fetch in a single request.
   maximumTileWidth: integer
+
+  // maximumTileHeight Maximum count of tiles along the y-axis to fetch in a single request.
   maximumTileHeight: integer
+}
+
+
+// ActiveGamePlayer player in a game.
+export interface ActiveGamePlayer {
+  playerIndex: integer
+  publicName: string
+  // TODO color, icon, etc
+}
+
+
+// GameParameters information about a running game
+//   or a pending game in a game lobby.
+export interface GameParameters {
+  currentBoardWidth: integer
+  currentBoardHeight: integer
+
+  // lobby, running, complete
+  runState: string
+
+  currentPlayerTurn: integer
+
+  players: ActiveGamePlayer[]
 }

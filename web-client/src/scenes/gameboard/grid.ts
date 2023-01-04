@@ -7,6 +7,7 @@ import {
   GameBoardRequests,
   GameBoardStatusHandler,
   ClientGameBoardSegment,
+  CATEGORY_LOADING,
 } from '../../gameboard-state'
 
 
@@ -120,56 +121,6 @@ interface GridTileInfo {
 // are inverted.  If the y values are inverted, the order of the
 // vertices must be also swapped to maintain the right-hand rule
 // for the normal.
-
-// Height (y) is then calculated based on the hexagon/triangle split.
-// Each tile contains the height for its hexagon, which we mark as the center
-// of the hexagon.  If we look at the points on the hexagon:
-//
-//         P0 ______________ P1
-//           /\            /\
-//          /  \  T(1, 0) /  \
-//         /    \        /    \
-//        /      \      /      \
-//       /        \    /        \
-//      / T(0, 0)  \  /  T(2, 0) \
-//  P2 / ________P3 \/_________P4 \
-//     \            /\            /
-//      \ T(0, 1)  /  \  T(2, 1) /
-//       \        /    \        /
-//        \      /      \      /
-//         \    /        \    /
-//          \  / T(1, 1)  \  /
-//       P5  \/____________\/ P6
-//
-// Each of these points joins 3 hexagons, 2 triangles each except the center point.
-// We can create a reverse tile to hex mapping to find which specific triangle in the
-// hexagon we're inspecting, then use a lookup table to get the relative index positions
-// for the other 2 tiles to average.
-
-// If we look at how the hexagons join to each other, we see the grid layout:
-
-//  H(A)                 |            H(B)             |        H(C)
-//            | T(2, 0)  | T(0, 1) | T(1, 1) | T(2, 1) |  T(0, 0) |
-//            +----------X=========+=========+=========X----------+
-//            | T(2, 1) || T(0, 0) | T(1, 0) | T(2, 0) || T(0, 1) |
-//  ----------+---------||---------+---------+---------||---------+--------------
-//            | T(2, 0) || T(0, 1) | T(1, 1) | T(2, 1) || T(0, 0) |
-//            +----------X=========+=========+=========X----------+
-//            | T(2, 1)  | T(0, 0) | T(1, 0) | T(2, 0) |  T(0, 1) |
-//  H(D)                 |            H(E)             |       H(F)
-
-// And based on the point/triangle diagram above, this maps verticies as linked
-// to other triangles (use H(0) as the current hex):
-//    P0 -> H(0):T(0, 0), H(0):T(1, 1), H(A):T(2, 1), H(B):T(1, 1)
-//    P1 -> H(0):T(1, 0), H(0):T(2, 0), H(B):T(1, 1), H(C):T(0, 1)
-//    P2 -> H(0):T(0, 0), H(0):T(0, 1), H(A):T(2, 1), H(D):T(2, 0)
-//    P3 -> [every triangle in H0]
-//    P4 -> H(0):T(2, 0), H(0):T(2, 1), H(C):T(0, 1), H(F):T(0, 0)
-//    P5 -> H(0):T(0, 1), H(0):T(1, 1), H(D):T(2, 0), H(E):T(1, 0)
-//    P6 -> H(0):T(1, 1), H(0):T(2, 1), H(E):T(1, 0), H(F):T(0, 0)
-// Note that there are other triangles in the other hexes that also match up with these
-// points, but each point in each triangle of H(0) only needs to look up 1 triangle in
-// another hexagon.
 
 // 30-60-90 triangle:
 //  hyp length == 1
@@ -625,12 +576,6 @@ export class Grid3d {
     this.tilePosGridTileIndex = {}
     this.tokenIdToSegmentTileIndex = {}
 
-    // Total number of visible triangles.
-    //   This could be stored, as it only needs to be calculated once,
-    //   but there are so many other places to optimize before this has
-    //   any kind of impact on overal performance.
-    const triangleCount = this.visibleWidth * this.visibleHeight
-
     // Vertex index
     let vertexIndex = 0
 
@@ -654,14 +599,9 @@ export class Grid3d {
     //   no attempt is made to match the grid index with the graphical
     //   triangle position.  Instead, the vertex index lookup table performs
     //   that mapping.
-    // Full height calculation is done after generating the board.  The first
-    //   pass sets up the grid -> token assignment which is used to discover
-    //   adjacent height values.
-    // This is very inefficient.  For maximum efficiency, this should loop
-    //   over the border of the segment as up to 4 loops without height checks,
-    //   then within the border of the segment with height calculations.
-    //   Then, a final pass over the borders.  The borders positions within
-    //   the array buffers would need to be recorded for even faster processing.
+    // Some optimizations:
+    //   Don't use the buffer array, but instead directly access the
+    //   underlying array and mass copy at the very end.
     const seenSegments: {[key: string]: ClientGameBoardSegment} = {}
 
     const board = this.boardReq.getGameBoard()
@@ -743,6 +683,10 @@ console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segm
           let cx = x + SIDE_LENGTH
           let cz = bz
 
+          const ay = tile.vertexHeight[0] * HEIGHT_SCALE
+          const by = tile.vertexHeight[1] * HEIGHT_SCALE
+          const cy = tile.vertexHeight[2] * HEIGHT_SCALE
+
           if (crOdd !== 0) {
             // Need to swap the b & c to accomodate the right-hand rule
             // to make the normals all point in the right direction
@@ -766,37 +710,34 @@ console.debug(` ${crOdd}: (${ax}, ${az}), (${bx}, ${bz}), (${cx}, ${cz})`)
           //   do it ourselves, then perform an array copy at the end.
           //   That would mean the height (y) doesn't need to be messed with
           //   yet, too, which is one more extra thing that's happening right now.
-          positions.setXYZ(vertexIndex    , ax, 0, az)
-          positions.setXYZ(vertexIndex + 1, bx, 0, bz)
-          positions.setXYZ(vertexIndex + 2, cx, 0, cz)
+          positions.setXYZ(vertexIndex    , ax, ay, az)
+          positions.setXYZ(vertexIndex + 1, bx, by, bz)
+          positions.setXYZ(vertexIndex + 2, cx, cy, cz)
 
+          // flat face normals
+          this.pA.set(ax, ay, az)
+          this.pB.set(bx, by, bz)
+          this.pC.set(cx, cy, cz)
+
+          this.cb.subVectors(this.pC, this.pB)
+          this.ab.subVectors(this.pA, this.pB)
+          this.cb.cross(this.ab)
+
+          this.cb.normalize()
+
+          const nx = this.cb.x
+          const ny = this.cb.y
+          const nz = this.cb.z
+
+          normals.setXYZ(vertexIndex    , nx, ny, nz)
+          normals.setXYZ(vertexIndex + 1, nx, ny, nz)
+          normals.setXYZ(vertexIndex + 2, nx, ny, nz)
           // uv (texture map) position requires turning the tile into the
           //   corresponding hexagon triangle index.
-          let hexIndex: number
-          let col3 = col % 3
-          if (col3 < 0) {
-            col3 += 3
-          }
-          let row2 = row % 2
-          if (row2 < 0) {
-            row2 += 2
-          }
-          let col6 = col % 6
-          if (col6 < 0) {
-            col6 += 6
-          }
-          if (col6 < 3) {
-            hexIndex = col3 + (row2 * 3)
-          } else {
-            // row 2 is either 0 or 1.  With the col6 >= 3, that means
-            // it's off by 1, and needs to drop.
-            hexIndex = col3 + ((1 - row2) * 3)
-            row2--
-          }
-console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} : ${tile.category} : ${tile.tokenId}`)
+          const hexIndex = tile.tokenHexTileIndex
           gridTile.hexIndex = hexIndex
-          gridTile.hexColumn = col3
-          gridTile.hexRow = row2
+          gridTile.hexColumn = hexIndex % 3
+          gridTile.hexRow = (hexIndex / 3) | 0
 
           const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, false, false)
           uv.setXY(vertexIndex    , uvPos[0][0], uvPos[0][1])
@@ -833,106 +774,6 @@ console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} 
         // The same chunk increment for the row applies.
         startRow = segment.y + segHeight
       }
-    }
-
-    // Update the heights and the normals
-    const allGrids: (GridTileInfo | undefined)[] = [
-      undefined, undefined, undefined, undefined, undefined, undefined,
-    ]
-
-    for (gridTileIndex = 0; gridTileIndex < triangleCount; gridTileIndex++) {
-      // Find the current token and the adjacent 6 tokens
-      const here = this.gridTiles[gridTileIndex]
-      const segment = seenSegments[here.segmentId]
-      const tile = segment.tiles[here.tileIndex]
-
-      let agi = 0
-
-      // The grid of:
-      //  a a a b b b c c c
-      //  a a a x x x c c c
-      //  d d d x x x e e e
-      //  d d d f f f e e e
-      // Means that the adjacent 6 tokens to this one
-      // can be for any hex value in the current token.  We perform
-      // some math that will grab the adjacent tokens regardless of
-      // the current token.
-
-      // These computations find the corresponding triangle in the
-      // adjacent 6 hexes.
-      const rowAC = here.y - 1  // token a, c
-      const rowACLookup = this.tilePosGridTileIndex[rowAC]
-
-      const rowDE = rowAC + 2   // token d, e
-      const rowDELookup = this.tilePosGridTileIndex[rowDE]
-
-      const rowB = rowAC - 1    // token b
-      const rowBLookup = this.tilePosGridTileIndex[rowB]
-
-      const rowF = rowAC + 3    // token f
-      const rowFLookup = this.tilePosGridTileIndex[rowF]
-
-      const colAD = here.x - 3  // token a, d
-      const colCE = colAD + 6    // token c, e
-      const colBF = colAD + 3    // token b, f
-
-      if (rowACLookup !== undefined) {
-        // Token a
-        allGrids[agi++] = this.gridTiles[rowACLookup[colAD]]
-        // Token c
-        allGrids[agi++] = this.gridTiles[rowACLookup[colCE]]
-      }
-
-      if (rowDELookup !== undefined) {
-        // Token d
-        allGrids[agi++] = this.gridTiles[rowDELookup[colAD]]
-        // Token e
-        allGrids[agi++] = this.gridTiles[rowDELookup[colCE]]
-      }
-
-      if (rowBLookup !== undefined) {
-        // Token b
-        allGrids[agi++] = this.gridTiles[rowBLookup[colBF]]
-      }
-
-      if (rowFLookup !== undefined) {
-        // Token f
-        allGrids[agi++] = this.gridTiles[rowFLookup[colBF]]
-      }
-
-      let height = tile.height
-      let count = 1
-      for (let i = 0; i < agi; i++) {
-        const gt = allGrids[i]
-        if (gt !== undefined) {
-          height += seenSegments[gt.segmentId].tiles[gt.tileIndex].height
-          count++
-        }
-      }
-
-      height = (height * HEIGHT_SCALE) / count
-      positions.setY(here.vertexA, height)
-      positions.setY(here.vertexB, height)
-      positions.setY(here.vertexC, height)
-
-      // flat face normals
-      this.pA.set(positions.getX(here.vertexA), height, positions.getZ(here.vertexA))
-      this.pB.set(positions.getX(here.vertexB), height, positions.getZ(here.vertexB))
-      this.pC.set(positions.getX(here.vertexA), height, positions.getZ(here.vertexC))
-
-      this.cb.subVectors(this.pC, this.pB)
-      this.ab.subVectors(this.pA, this.pB)
-      this.cb.cross(this.ab)
-
-      this.cb.normalize()
-
-      const nx = this.cb.x
-      const ny = this.cb.y
-      const nz = this.cb.z
-
-      normals.setXYZ(here.vertexA, nx, ny, nz)
-      normals.setXYZ(here.vertexB, nx, ny, nz)
-      normals.setXYZ(here.vertexC, nx, ny, nz)
     }
 
     positions.needsUpdate = true
@@ -1133,15 +974,80 @@ console.debug(` (${col}, ${row}) -> (${col3}, ${row2}) / ${col6} -> ${hexIndex} 
 }
 
 
-const LOADING_TILE: ClientTile = {
-  category: "loading",
-  tokenId: null,
-  variation: 0,
-  height: EMPTY_TILE_HEIGHT,
-  parameters: {},
-  hasAdjacentPlacedTile: false,
-  isPlayerPlaceableToken: false,
-}
+const LOADING_TILES: ClientTile[] = [
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 0,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 1,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 2,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 3,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 4,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+  {
+    category: CATEGORY_LOADING,
+    tokenId: null,
+    variation: 0,
+    height: EMPTY_TILE_HEIGHT,
+    parameters: {},
+    tokenHexTileIndex: 5,
+    adjacentTokenTileCount: 0,
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  },
+]
 
 
 class SegmentManager {
@@ -1160,9 +1066,17 @@ class SegmentManager {
     const board = boardReq.getGameBoard()
     const segTileCount = board.segmentWidth * board.segmentHeight
     this.loadingTiles = new Array<ClientTile>(segTileCount)
+    let row = 0
+    let col = 0
     for (let i = 0; i < segTileCount; i++) {
+      let tileHex = (col % 3)
+      if ((col % 6) < 3) {
+        tileHex += row % 2
+      } else {
+        tileHex = 1 - (row % 2)
+      }
       // Note: not a copy, but a pointer.
-      this.loadingTiles[i] = LOADING_TILE
+      this.loadingTiles[i] = LOADING_TILES[tileHex]
     }
   }
 

@@ -1,6 +1,6 @@
 // Client-Server API.
 import { JsonLookup, JSONValueType } from '../lib/typed-json'
-import { Account, SegmentTile, ServerParameters } from './structs'
+import { Account, SegmentTile, ServerParameters, ActiveGamePlayer, GameParameters } from './structs'
 
 
 // RestApiConnection generic API for connecting to the server.
@@ -73,6 +73,39 @@ export class HostApi {
     const gameId = data.asStr('gameId')
     if (gameId !== null) {
       return gameId
+    }
+    return Promise.reject('unexpected server response for server parameters')
+  }
+
+
+  async getGameParameters(gameId: string): Promise<GameParameters> {
+    const data = await this.connection.getJson(`/game/${gameId}`, {})
+    const currentBoardWidth = data.asInt('currentBoardWidth')
+    const currentBoardHeight = data.asInt('currentBoardHeight')
+    const runState = data.asStr('runState')
+    const currentPlayerTurn = data.asInt('currentPlayerTurn')
+
+    const players: ActiveGamePlayer[] = []
+    for (let i = 0; i < data.getLength('players'); i++) {
+      const playerIndex = data.asInt('players', i, 'playerIndex')
+      const publicName = data.asStr('publicName', i, 'publicName')
+      if (playerIndex !== null && publicName !== null) {
+        players.push({ playerIndex, publicName })
+      }
+    }
+    if (
+        currentBoardWidth !== null
+        && currentBoardHeight !== null
+        && runState !== null
+        && currentPlayerTurn !== null
+    ) {
+      return {
+        currentBoardWidth,
+        currentBoardHeight,
+        runState,
+        currentPlayerTurn,
+        players,
+      }
     }
     return Promise.reject('unexpected server response for server parameters')
   }

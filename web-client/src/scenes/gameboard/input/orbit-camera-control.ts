@@ -62,8 +62,8 @@ export class OrbitCameraControl implements CameraControl {
   private zoom0: number
   private targetMin: Vector3
   private targetMax: Vector3
-  private positionMin: Vector3
-  private positionMax: Vector3
+  //private positionMin: Vector3
+  //private positionMax: Vector3
 
   // current position in spherical coordinates
   private spherical: Spherical = new Spherical()
@@ -114,8 +114,8 @@ export class OrbitCameraControl implements CameraControl {
     this.target = new Vector3()
     this.targetMin = new Vector3(-Infinity, -Infinity, -Infinity)
     this.targetMax = new Vector3(Infinity, Infinity, Infinity)
-    this.positionMin = new Vector3(-Infinity, -Infinity, -Infinity)
-    this.positionMax = new Vector3(Infinity, Infinity, Infinity)
+    //this.positionMin = new Vector3(-Infinity, -Infinity, -Infinity)
+    //this.positionMax = new Vector3(Infinity, Infinity, Infinity)
 
     // How far you can dolly in and out ( PerspectiveCamera only )
     this.minDistance = 0

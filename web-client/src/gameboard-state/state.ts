@@ -7,7 +7,7 @@
 //   an event is sent.
 //   There are Many of these, so they need to be memory efficient.
 export interface ClientTile {
-  // Static data - will not change once the token is placed.
+  // Server Static data - will not change once the token is placed.
 
   // category The kind of tile.
   //    null means that the tile hasn't been placed yet.
@@ -18,11 +18,12 @@ export interface ClientTile {
   //   ... but a single token has 6 tiles.
   tokenId: integer | null
 
-  // Variation on the category texture (purely aesthetic).
-  variation: integer
-
   // height Tile vertical position
   height: number
+
+  // Variation on the category texture (purely aesthetic).
+  //   TODO is this a server value or client value?
+  variation: integer
 
 
   // Dynamic server data - may change after the token is placed.
@@ -33,15 +34,34 @@ export interface ClientTile {
   //   The client is only aware of the quantity.
   parameters: {[keys: integer]: number}
 
+  // Static client extrapolated data.
+
+  // The tile index within the hex.
+  //   Value is:
+  //        ._____.
+  //       / \ 1 / \
+  //      /_0_\./_2_\
+  //      \ 3 / \ 5 /
+  //       \./_4_\./
+  //
+  tokenHexTileIndex: integer
 
   // Dynamic client extrapolated data - changes only based on server data changes
 
-  // hasAdjacentPlacedTile is there another tile next to this one?
-  //   Adjacent here means in one of the 3 positions next to the triangle.
-  hasAdjacentPlacedTile: boolean
+  // Number of tiles that are considered "adjacent" to this one.  If one token
+  // is adjacent to this tile's token, then all that token's tiles are adjacent.
+  // Therefore, this will end up being a multiple of 6 if everything's working right.
+  adjacentTokenTileCount: integer
 
-  // isPlayerPlaceableToken can the current player put a token in this position?
-  isPlayerPlaceableToken: boolean
+  // Height calculation.
+  //   When an adjacent tile is placed, its height is added here.
+  //   At least the current tile's height must be here, and therefore the count > 0.
+  //   The A/B/C is based on the grid drawing.  These numbers are tightly coupled.
+  //   The height is re-computed when a new tile is added.
+  //   The count for each of these values is always 3.
+  vertexHeight: integer[]
+  vertexHeightSum: integer[]
+  vertexHeightCount: integer[]
 }
 
 

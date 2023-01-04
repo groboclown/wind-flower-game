@@ -6,7 +6,7 @@ let serverConnection: RestApiConnection | null = null
 
 
 export function initializeServer(apiUrl: string) {
-  throw new Error('server connection not supported yet')
+  throw new Error(`server connection not supported yet (${apiUrl})`)
 }
 
 export function closeServer() {
