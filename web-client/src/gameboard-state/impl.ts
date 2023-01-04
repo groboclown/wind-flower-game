@@ -4,7 +4,7 @@ import { ClientGameBoard, TileParameterType, ClientTile, ClientGameBoardSegment 
 import { GameBoardRequests, GameBoardStatusHandler } from './events'
 import { HostApi } from '../server/api'
 import { GameBoardManager } from './manager'
-import { CATEGORY_UNSET, CATEGORY_LOADING, CATEGORY_EMPTY } from './asset-names'
+import { CATEGORY_UNSET, CATEGORY_LOADING, CATEGORY_EMPTY, CATEGORY_PLACEABLE } from './asset-names'
 
 
 const EMPTY_TILE: ClientTile = {
@@ -203,10 +203,12 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
     const tileAddrCache: {[keys: string]: ClientTile | null} = {}
 
+    // TODO looks like the right thing to do here is:
+    //   1. Load in the server tiles into the client grid.
+    //   2. THEN inspect the client grid for updating adjacent.
+
     serverTiles.forEach((serverTile) => {
-      const tileX = serverTile.x
-      const tileY = serverTile.y
-      const tileIndex = (tileX - x) + ((tileY - y) * width)
+      const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
       delete emptyServerTiles[tileIndex]
       const tile = tiles[tileIndex]
       tile.category = serverTile.c
@@ -224,6 +226,21 @@ export class GameBoardManagerImpl implements GameBoardManager {
         tile.vertexHeightCount[i] = 0
         tile.vertexHeight[i] = 0
       }
+    })
+
+
+
+    Object.values(emptyServerTiles).forEach((tileIndex) => {
+      const tile = tiles[tileIndex]
+      // TODO detect if it's placeable.
+      tile.category = CATEGORY_EMPTY
+    })
+
+    let tileX = segment.x
+    const maxTileX = segment.x + width
+    let tileY = segment.y
+    for (let tileIdx = 0; tileIdx < segment.tiles.length; tileIdx++) {
+      const tile = segment.tiles[tileIdx]
 
       // Find the adjacent token's tiles.  If any are non-null, and we
       //   constructed the board right, then all the tiles are non-null.
@@ -233,9 +250,12 @@ export class GameBoardManagerImpl implements GameBoardManager {
       self.populateAdjacentTilesTo(
         tileX, tileY, tile.tokenHexTileIndex, tileAddrCache, self.tmpAdjacentTiles
       )
-      if (self.tmpAdjacentTiles[0] !== null && self.tmpAdjacentTiles[0].category === null) {
+      if (self.tmpAdjacentTiles[0] !== null && self.tmpAdjacentTiles[0].category === CATEGORY_EMPTY) {
         for (let i = 0; i < 6; i++) {
-          (self.tmpAdjacentTiles[0] as ClientTile).adjacentTokenTileCount++
+          const other = self.tmpAdjacentTiles[i] as ClientTile
+          // FIXME this doesn't identify the tiles right.
+          other.adjacentTokenTileCount++
+          other.category = CATEGORY_PLACEABLE
         }
       }
 
@@ -257,9 +277,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
           }
         }
         // tile.vertexHeightACount should always be non-zero.
-
-        // FIXME set this correctly.
-        // tile.vertexHeight[vIdx] = tile.vertexHeightSum[vIdx] / tile.vertexHeightCount[vIdx]
+        tile.vertexHeight[vIdx] = tile.vertexHeightSum[vIdx] / tile.vertexHeightCount[vIdx]
       }
 
       // Push this height into the adjacent 4 tiles of the shared vertex.
@@ -274,18 +292,17 @@ export class GameBoardManagerImpl implements GameBoardManager {
           const vIdx = tileVertexRel[2]
           other.vertexHeightSum[vIdx] += tile.height
           other.vertexHeightCount[vIdx]++
-
-          // FIXME set this correctly.
-          // other.vertexHeight[vIdx] = other.vertexHeightSum[vIdx] / other.vertexHeightCount[vIdx]
+          other.vertexHeight[vIdx] = other.vertexHeightSum[vIdx] / other.vertexHeightCount[vIdx]
         }
       }
 
-    })
-    Object.values(emptyServerTiles).forEach((tileIndex) => {
-      const tile = tiles[tileIndex]
-      // TODO detect if it's placeable.
-      tile.category = CATEGORY_EMPTY
-    })
+      // End of loop increment.
+      tileX++
+      if (tileX >= maxTileX) {
+        tileX = segment.x
+        tileY++
+      }
+    }
 
     // The board state just changed again, so update the load id.
     self.board.loadId++

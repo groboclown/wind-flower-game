@@ -131,7 +131,7 @@ const SIDE_LENGTH = 1.0
 const SIDE_LENGTH_HALF = SIDE_LENGTH / 2.0
 const SLOPE = 1.0 / Math.sqrt(3.0)
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3.0)
-const HEIGHT_SCALE = 0.2
+const HEIGHT_SCALE = 4.0
 const EMPTY_TILE_HEIGHT = -5
 
 const UPDATE_GRID_RATIO = 0.8
