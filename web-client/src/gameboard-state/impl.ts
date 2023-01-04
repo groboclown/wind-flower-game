@@ -402,6 +402,29 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
 }
 
+
+function getHexTileIndex(absX: integer, absY: integer): integer {
+  let col3 = absX % 3
+  if (col3 < 0) {
+    col3 += 3
+  }
+  let row2 = absY % 2
+  if (row2 < 0) {
+    row2 += 2
+  }
+  let col6 = absX % 6
+  if (col6 < 0) {
+    col6 += 6
+  }
+  if (col6 >= 3) {
+    // odd token, so inverse the row as it's offset by 1.
+    row2 = 1 - row2
+  }
+  return col3 + (row2 * 3)
+}
+
+
+
 // As an optimization, the gameboard drawing relies on the gameboard state
 // to store one-time computations.  The two must be tightly integrated on
 // these values to make the gameboard rendering fast.
@@ -686,25 +709,4 @@ class CallbackRequest implements GameBoardRequests {
     // TODO FIXME
   }
 
-}
-
-
-function getHexTileIndex(absX: integer, absY: integer): integer {
-  let col3 = absX % 3
-  if (col3 < 0) {
-    col3 += 3
-  }
-  let row2 = absY % 2
-  if (row2 < 0) {
-    row2 += 2
-  }
-  let col6 = absX % 6
-  if (col6 < 0) {
-    col6 += 6
-  }
-  if (col6 >= 3) {
-    // odd token, so inverse the row as it's offset by 1.
-    row2 = 1 - row2
-  }
-  return col3 + (row2 * 3)
 }

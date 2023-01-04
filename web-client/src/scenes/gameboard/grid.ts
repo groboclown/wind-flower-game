@@ -9,6 +9,7 @@ import {
   ClientGameBoardSegment,
   CATEGORY_LOADING,
 } from '../../gameboard-state'
+import { nonnegativeRemainder } from '../../lib/math'
 
 
 export const EMPTY_SEGMENT_ID = ""
@@ -131,7 +132,7 @@ const SIDE_LENGTH = 1.0
 const SIDE_LENGTH_HALF = SIDE_LENGTH / 2.0
 const SLOPE = 1.0 / Math.sqrt(3.0)
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3.0)
-const HEIGHT_SCALE = 4.0
+const HEIGHT_SCALE = 0.8
 const EMPTY_TILE_HEIGHT = -5
 
 const UPDATE_GRID_RATIO = 0.8
@@ -211,7 +212,7 @@ export class Grid3d {
 
     // initial tile the client looks at
     //   Note: the server tells the client where the player's starting
-    //   position is based on tile position.
+    //   position is based on tile position.  It might be negative.
     targetTilePositionColumn: integer,
     targetTilePositionRow: integer,
   ) {
@@ -220,15 +221,17 @@ export class Grid3d {
     // Need to ensure that height wise we always show at least 2
     // full tokens, for one above and one below.  This makes target adjustment
     // easier by moving a complete token along the z axis.
-    visibleHeight = (visibleHeight >> 2) * 4
+    // A token is 2 tiles tall, so that means the height must be at least 6 tall
+    // (2 + 1) and increments of 2.
+    visibleHeight = Math.max(6, visibleHeight - (visibleHeight % 2) + 2)
     // Width wise, we want to have it be at least 2 complete tokens
     // so that the segment loading and the token adjustment is easier.
-    visibleWidth = (visibleWidth >> 2) * 4
+    visibleWidth = Math.max(9, visibleWidth - (visibleWidth % 3) + 3)
 
     // Make sure the target points at the start of a token.
-    targetTilePositionColumn = targetTilePositionColumn - (targetTilePositionColumn % 3)
-    targetTilePositionRow = (targetTilePositionRow >> 1) * 2
-    if (targetTilePositionColumn % 6 >= 3) {
+    targetTilePositionColumn = targetTilePositionColumn - nonnegativeRemainder(targetTilePositionColumn, 3)
+    targetTilePositionRow = targetTilePositionRow - nonnegativeRemainder(targetTilePositionRow, 2)
+    if (nonnegativeRemainder(targetTilePositionColumn, 6) >= 3) {
       // Odd token column, so row is offset.
       targetTilePositionRow++
     }
@@ -1069,6 +1072,7 @@ class SegmentManager {
     let row = 0
     let col = 0
     for (let i = 0; i < segTileCount; i++) {
+      // no negative checks, because col/row are strictly non-negative.
       let tileHex = (col % 3)
       if ((col % 6) < 3) {
         tileHex += row % 2
@@ -1077,6 +1081,13 @@ class SegmentManager {
       }
       // Note: not a copy, but a pointer.
       this.loadingTiles[i] = LOADING_TILES[tileHex]
+
+      // End-of-loop adjustments
+      col++
+      if (col > board.segmentWidth) {
+        col = 0
+        row++
+      }
     }
   }
 
