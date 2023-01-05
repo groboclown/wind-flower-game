@@ -83,12 +83,13 @@ export class GameBoardManagerImpl implements GameBoardManager {
     this.callbacks = []
     this.loadingSegments = {}
     this.board = {
-      boardWidth: 0,
-      boardHeight: 0,
-      boardMinX: 0,
-      boardMaxX: 0,
-      boardMinY: 0,
-      boardMaxY: 0,
+      // TODO update the sizes from the server.
+      boardWidth: Infinity,
+      boardHeight: Infinity,
+      boardMinX: -Infinity,
+      boardMaxX: Infinity,
+      boardMinY: -Infinity,
+      boardMaxY: Infinity,
 
       segmentWidth,
       segmentHeight,
@@ -207,7 +208,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
     //   1. Load in the server tiles into the client grid.
     //   2. THEN inspect the client grid for updating adjacent.
 
-    serverTiles.forEach((serverTile) => {
+    serverTiles.segments.forEach((serverTile) => {
       const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
       delete emptyServerTiles[tileIndex]
       const tile = tiles[tileIndex]

@@ -1,6 +1,7 @@
 // Generate test game board data.
 import { JsonLookup, JSONValueType } from '../../lib/typed-json'
 import { RestApiConnection } from '../../server/api'
+import { GAME_RUN_STATE__RUNNING } from '../../server/structs'
 import { SegmentTile } from '../../server/structs'
 
 
@@ -42,6 +43,33 @@ export class TestDataGeneratorApiConnection implements RestApiConnection {
       return new JsonLookup({
         maximumTileWidth: MAX_RETURNED_WIDTH,
         maximumTileHeight: MAX_RETURNED_HEIGHT,
+      })
+    }
+    if (path === `/game/${this.gameId}`) {
+      return new JsonLookup({
+        gameName: 'It\'s the game!',
+        protected: false,
+        unlisted: false,
+        createdAt: new Date().toISOString(),
+        runState: GAME_RUN_STATE__RUNNING,
+        minimumPlayerCount: 1,
+        maximumPlayerCount: 1,
+        parameters: [], // GameTileParameter
+        currentPlayerTurn: 0,
+        currentBoardColumnMin: -10000,
+        currentBoardRowMin: -10000,
+        currentBoardColumnMax: 10000,
+        currentBoardRowMax: 10000,
+        lastTurn: null,
+        players: [  // ActiveGamePlayer
+          {
+            playerIndex: 0,
+            publicName: 'Myself',
+            lastConnectedTime: new Date().toISOString(),
+            state: "mock",
+            score: "10.02",
+          },
+        ],
       })
     }
     if (path === `/game/${this.gameId}/segment`) {

@@ -371,6 +371,17 @@ export class Grid3d {
   }
 
 
+  getBoardBounds(): {minRow: number, minCol: number, maxRow: number, maxCol: number} {
+    const board = this.boardReq.getGameBoard()
+    return {
+      minCol: board.boardMinX,
+      minRow: board.boardMinY,
+      maxCol: board.boardMaxX,
+      maxRow: board.boardMaxY,
+    }
+  }
+
+
   // getTargetAtTile populate the target value with the x/z position of the tile
   // The column/row is the absolute position, independent of segments.
   // The height is set to 0, not the height of the tile (which may not be loaded yet).

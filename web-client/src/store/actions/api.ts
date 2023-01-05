@@ -98,12 +98,53 @@ export const gameLobbyStateChanged = createAction(
 )
 
 
+export interface GameParametersStateLoad {
+  gameName: string
+
+  // protected true if there's an extra secret preventing random people from joining
+  //   This is different than a private game.
+  protected: boolean
+
+  // unlisted true if the game isn't listed by the server
+  unlisted: boolean
+
+  createdAt: Date
+
+  runState: integer
+
+  // For lobby mode, these values may change.
+  // Once the game starts, these are unmodifiable.
+  minimumPlayerCount: integer
+  maximumPlayerCount: integer
+  parameters: ServerGameParameter[]
+
+  // currentPlayerTurn only has meaning for RUNNING state.
+  //   This is a tad redundand from lastTurn.nextPlayerTurn,
+  //   but it's important for the first turn, where 'lastTurn' is null.
+  currentPlayerTurn: integer
+
+  currentBoardColumnMin: integer
+  currentBoardRowMin: integer
+  currentBoardColumnMax: integer
+  currentBoardRowMax: integer
+
+  lastTurn: ServerTurnCompleted | null
+}
+
+
+export const updateGameParameters = createAction(
+  'GameLobby/server-parameters-change', function prepare(info: GameParametersStateLoad) {
+    return { payload: info }
+  }
+)
+
+
 export interface ServerTurnCompleted {
   completedPlayerTurn: number
   nextPlayerTurn: number
 
   // UTC datetime
-  turnCompletedAt: string
+  turnCompletedAt: Date
 
   // Which token was played?
   tokenPlayed: {

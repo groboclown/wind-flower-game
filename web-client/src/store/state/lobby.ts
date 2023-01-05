@@ -6,6 +6,7 @@ import {
   createdGameLobby,
   gameLobbyPlayersUpdated,
   gameLobbyStateChanged,
+  updateGameParameters,
 } from '../actions/api'
 
 
@@ -64,6 +65,24 @@ export interface GameMode {
 }
 
 
+// RunningState if a game is actively running, this contains high level information
+//   This may be updated on the server as the game runs, but this state is only updated
+//   when the server values are explicitly queried.
+export interface RunningState {
+  // currentPlayerIndexTurn whose turn is it?
+  currentPlayerIndexTurn: integer
+  currentTurnStartedAt: Date
+
+  boardMinColumn: integer
+  boardMinRow: integer
+  boardMaxColumn: integer
+  boardMaxRow: integer
+
+  // TODO this should probably be enhanced in the future
+  playerScores: number[]
+}
+
+
 // The active players in the game.
 export interface GameLobbyState {
   gameName: string
@@ -73,12 +92,15 @@ export interface GameLobbyState {
   // Which player the client player is assigned in the player list.
   clientPlayerIndex: integer
 
-  // The lobby state.
+  // lobbyState One of GAME_LOBY_STATE__*
   gameLobbyState: integer
 
-  // The game mode.
+  // gameMode information about the game setup
   // Declared at creation time.  Might be changable waiting for players.
   gameMode: GameMode
+
+  // runningState set if the game state is RUNNING
+  runningState: RunningState | null
 }
 
 
@@ -97,6 +119,7 @@ function initialGameLobbyState(): GameLobbyState {
       maximumTurnCount: null,
       parameters: [],
     },
+    runningState: null,
   }
 }
 
@@ -138,6 +161,30 @@ export const gameLobbyReducer = createReducer(
       })
       .addCase(gameLobbyStateChanged, (state, action) => {
         state.gameLobbyState = action.payload.newState
+      })
+      .addCase(updateGameParameters, (state, action) => {
+        state.gameName = action.payload.gameName
+        state.gameMode.parameters = action.payload.parameters
+        if (action.payload.runState === GAME_LOBBY_STATE__RUNNING) {
+          state.runningState = {
+            boardMinColumn: action.payload.currentBoardColumnMin,
+            boardMinRow: action.payload.currentBoardRowMin,
+            boardMaxColumn: action.payload.currentBoardColumnMax,
+            boardMaxRow: action.payload.currentBoardRowMax,
+            currentPlayerIndexTurn: action.payload.currentPlayerTurn,
+            currentTurnStartedAt:
+              action.payload.lastTurn === null
+                ? new Date()
+                : action.payload.lastTurn.turnCompletedAt,
+
+            // TODO fill in the player scores
+            playerScores: [],
+          }
+        } else {
+          state.runningState = null
+        }
+
+        // TODO update player list
       })
   },
 )

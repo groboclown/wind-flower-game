@@ -39,7 +39,10 @@ export class JsonLookup {
   }
 
   getPath(path: JSONPath): JsonEntry {
-    const fullPath = [...this.basePath, ...path]
+    return this.getFullPath([...this.basePath, ...path])
+  }
+
+  private getFullPath(fullPath: JSONPath): JsonEntry {
     const pathSoFar: JSONPath = []
     let current: JSONValueType = this.root
     for (let i = 0; i < fullPath.length; i++) {
@@ -83,19 +86,19 @@ export class JsonLookup {
 
   getLength(...elements: JSONPathElement[]): integer {
     const value = this.getPath(elements)
-    if (Array.isArray(value)) {
-      return value.length
+    if (Array.isArray(value.value)) {
+      return value.value.length
     }
     // < 0; Standard for loops over this will still work okay.
     return -1
   }
 
-  asStr(...elements: JSONPathElement[]): string | null {
+  asStr(...elements: JSONPathElement[]): string | undefined {
     const value = this.getPath(elements)
     if (typeof value.value === 'string') {
       return value.value
     }
-    return null
+    return undefined
   }
 
   asStrOr(defaultValue: string, ...elements: JSONPathElement[]): string {
@@ -106,15 +109,15 @@ export class JsonLookup {
     return defaultValue
   }
 
-  asInt(...elements: JSONPathElement[]): integer | null {
+  asInt(...elements: JSONPathElement[]): integer | undefined {
     const value = this.getPath(elements)
     if (typeof value.value === 'number') {
       return value.value | 0
     }
-    return null
+    return undefined
   }
 
-  asNumber(...elements: JSONPathElement[]): number | null {
+  asNumber(...elements: JSONPathElement[]): number | undefined {
     const value = this.getPath(elements)
     if (typeof value.value === 'number') {
       return value.value
@@ -122,7 +125,74 @@ export class JsonLookup {
     if (typeof value.value === 'string') {
       return parseFloat(value.value)
     }
-    return null
+    return undefined
+  }
+
+  asBool(...elements: JSONPathElement[]): boolean | undefined {
+    const value = this.getPath(elements)
+    if (typeof value.value === 'boolean') {
+      return value.value
+    }
+    if (typeof value.value === 'number') {
+      return (value.value | 0) !== 0
+    }
+    if (value.value === 'true') {
+      return true
+    }
+    if (value.value === 'false') {
+      return false
+    }
+    return undefined
+  }
+
+  // asDate parse a string as a UTC date string
+  asDate(...elements: JSONPathElement[]): Date | undefined {
+    const value = this.getPath(elements)
+    if (typeof value.value === 'string') {
+      const millis = Date.parse(value.value)
+      if (isNaN(millis)) {
+        return undefined
+      }
+      return new Date(millis)
+    }
+    return undefined
+  }
+
+  forEach(pathElements: JSONPathElement[], callback: ((data: JsonLookup) => void)) {
+    const mapCallback = (d: JsonLookup): undefined => {
+      callback(d)
+      // Returning undefined here means we don't add space to the
+      //   underlying array created by the mapFilter.
+      return undefined
+    }
+    this.map(pathElements, mapCallback)
+  }
+
+  map<Type>(pathElements: JSONPathElement[], callback: ((data: JsonLookup) => Type)): Type[] {
+    return this.mapFilter(pathElements, callback)
+  }
+
+  // mapFilter transform the item in the list into a value or, if returns undefined, then skip it
+  mapFilter<Type>(pathElements: JSONPathElement[], callback: ((data: JsonLookup) => Type | undefined)): Type[] {
+    // Faster version.
+    const ret: Type[] = []
+    const listPath = [...this.basePath, ...pathElements]
+    const value = this.getFullPath(listPath)
+    if (Array.isArray(value.value)) {
+      // Make the last item in the full path a number.  It will be replaced inside the loop.
+      const lastPos = listPath.length
+      listPath.push(0)
+
+      for (let i = 0; i < value.value.length; i++) {
+        listPath[lastPos] = i
+        const val = callback(new JsonLookup(this.root, listPath))
+        if (val !== undefined) {
+          ret.push(val)
+        }
+      }
+    }
+
+    return ret
   }
 
 }

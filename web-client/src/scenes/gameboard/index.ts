@@ -25,6 +25,7 @@ import {
   createGameBoardManager,
 } from '../../gameboard-state'
 import { getRestApiConnection, HostApi } from '../../server'
+import { Vector3 } from 'three'
 
 
 export default class GameBoardScene extends Scene3D {
@@ -166,6 +167,11 @@ export default class GameBoardScene extends Scene3D {
   update() {
     if (this.controls !== null && this.grid3d !== null) {
       this.controls.onUpdate()
+      const boardBounds = this.grid3d.getBoardBounds()
+      this.controls.setTargetBounds(
+        new Vector3(boardBounds.minCol, 0, boardBounds.minRow),
+        new Vector3(boardBounds.maxCol, 0, boardBounds.maxRow),
+      )
       this.grid3d.updateGridAtTarget(this.controls.getTarget())
       // Ensure the selection & hover is set correctly.
 
