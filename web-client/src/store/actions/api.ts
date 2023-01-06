@@ -108,7 +108,8 @@ export interface GameParametersStateLoad {
   // unlisted true if the game isn't listed by the server
   unlisted: boolean
 
-  createdAt: Date
+  // UTC datetime
+  createdAt: integer
 
   runState: integer
 
@@ -144,7 +145,7 @@ export interface ServerTurnCompleted {
   nextPlayerTurn: number
 
   // UTC datetime
-  turnCompletedAt: Date
+  turnCompletedAt: integer
 
   // Which token was played?
   tokenPlayed: {

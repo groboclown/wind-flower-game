@@ -1,8 +1,20 @@
 // Generate test game board data.
-import { JsonLookup, JSONValueType } from '../../lib/typed-json'
-import { RestApiConnection } from '../../server/api'
+import {
+  ServerParameters,
+  GameLobbyCreated,
+  GameParameters,
+  SegmentTileCollection,
+} from '../../server/structs'
+import {
+  AccountMananger,
+  MockServer,
+  AccountInfo,
+  ServerError,
+  MockServerSetup,
+  createMockServerSetup,
+} from '../../server/mock-server'
 import { GAME_RUN_STATE__RUNNING } from '../../server/structs'
-import { SegmentTile } from '../../server/structs'
+import { SegmentTile, NewAccount } from '../../server/structs'
 
 
 // Must be a multiple of 3
@@ -12,114 +24,143 @@ export const MAX_RETURNED_HEIGHT = 14
 
 
 interface TestTile {
-  tokenId: integer,
   category: string | null,
   height: number,
   variation: integer,
 }
 
 
-export class TestDataGeneratorApiConnection implements RestApiConnection {
+interface GameInfo {
   gameId: string
+  protectedPassword: string | null
+  unlisted: boolean
+  createdAt: Date
+  state: string
   lastTokenId: integer
-
-  constructor(gameId: string) {
-    this.gameId = gameId
-    this.lastTokenId = 0
-  }
-
-  setServerPublicKey(_key: string): void {
-    // ignore
-  }
-
-  // setAccountConnectionInformation set how the connection will mark the authorization information
-  //   Either set based on cached client information or on create account requests.
-  setAccountConnectionInformation(_accountId: string, _accountPrivateKey: string): void {
-    // ignore
-  }
-
-  async getJson(path: string, parameters: JSONValueType): Promise<JsonLookup> {
-    if (path === '/server/parameters') {
-      return new JsonLookup({
-        maximumTileWidth: MAX_RETURNED_WIDTH,
-        maximumTileHeight: MAX_RETURNED_HEIGHT,
-      })
-    }
-    if (path === `/game/${this.gameId}`) {
-      return new JsonLookup({
-        gameName: 'It\'s the game!',
-        protected: false,
-        unlisted: false,
-        createdAt: new Date().toISOString(),
-        runState: GAME_RUN_STATE__RUNNING,
-        minimumPlayerCount: 1,
-        maximumPlayerCount: 1,
-        parameters: [], // GameTileParameter
-        currentPlayerTurn: 0,
-        currentBoardColumnMin: -10000,
-        currentBoardRowMin: -10000,
-        currentBoardColumnMax: 10000,
-        currentBoardRowMax: 10000,
-        lastTurn: null,
-        players: [  // ActiveGamePlayer
-          {
-            playerIndex: 0,
-            publicName: 'Myself',
-            lastConnectedTime: new Date().toISOString(),
-            state: "mock",
-            score: "10.02",
-          },
-        ],
-      })
-    }
-    if (path === `/game/${this.gameId}/segment`) {
-      if (parameters !== null && typeof parameters === 'object' && ! Array.isArray(parameters)) {
-        const x = parameters.x as number
-        const y = parameters.y as number
-        const size: BoardSize = {
-          width: Math.min(MAX_RETURNED_WIDTH, parameters.width as number),
-          height: Math.min(MAX_RETURNED_HEIGHT, parameters.height as number),
-        }
-        const retToken = [this.lastTokenId]
-
-        const segments = hexTokensToSegment(
-          size, x, y, retToken,
-          createAlternatingEmptyTokenSegment(size, x * y, 6),
-        )
-        this.lastTokenId = retToken[0]
-        return new JsonLookup({
-          count: segments.length,
-          segments: (segments as unknown) as JSONValueType[],
-        })
-      }
-    }
-
-    return new JsonLookup({
-      error: {
-        message: "Unknown path {path}",
-        parameters: {
-          path: path,
-        }
-      }
-    })
-  }
-
-  async postJson(path: string, _parameters: JSONValueType): Promise<JsonLookup> {
-    if (path === '/game') {
-      return new JsonLookup({gameId: this.gameId})
-    }
-
-    return new JsonLookup({
-      error: {
-        message: "Unknown path {path}",
-        parameters: {
-          path: path,
-        }
-      }
-    })
-  }
+  name: string
+  minPlayers: integer
+  maxPlayers: integer
+  maxTurns: integer
+  tileWidthMin: integer
+  tileWidthMax: integer
+  tileHeightMin: integer
+  tileHeightMax: integer
 }
 
+
+export async function createMassDataMockServer(baseUrl: string): Promise<MockServerSetup> {
+  return await createMockServerSetup(baseUrl, new TestMassDataMockServer())
+}
+
+
+class TestMassDataMockServer implements MockServer {
+  private accountManager: AccountMananger | null
+  private games: {[keys: string]: GameInfo}
+
+
+  constructor() {
+    this.accountManager = null
+    this.games = {}
+  }
+
+  async setAccountManager(accountManager: AccountMananger): Promise<void> {
+    this.accountManager = accountManager
+  }
+
+  async handleCreateAccount(): Promise<NewAccount> {
+    if (this.accountManager === null) {
+      throw new Error('not setup')
+    }
+    return await this.accountManager.createAccount()
+  }
+
+  async handleGetServerParameters(_requestor: AccountInfo): Promise<ServerParameters> {
+    return {
+      maximumTileWidth: MAX_RETURNED_WIDTH,
+      maximumTileHeight: MAX_RETURNED_HEIGHT,
+      maximumPlayerCount: 1,
+    }
+  }
+
+  async handleStartGameLobby(
+    _requestor: AccountInfo, name: string, maxPlayers: integer
+  ): Promise<GameLobbyCreated> {
+    const gameId = `game-${Object.keys(this.games).length}`
+    this.games[gameId] = {
+      gameId,
+      name,
+      createdAt: new Date(),
+      protectedPassword: null,
+      unlisted: false,
+      state: GAME_RUN_STATE__RUNNING,  // should be lobby
+      lastTokenId: 0,
+      minPlayers: 1,
+      maxPlayers,
+      maxTurns: 100000,
+      tileWidthMin: 3 * -1000,
+      tileWidthMax: 3 * 1000,
+      tileHeightMin: 2 * -1000,
+      tileHeightMax: 2 * 1000,
+    }
+    return {
+      gameId,
+    }
+  }
+
+  async handleGetGameParameters(_requestor: AccountInfo, gameId: string): Promise<GameParameters> {
+    const game = this.games[gameId]
+    if (game === undefined) {
+      throw new ServerError(404, 'NOT FOUND', `game "${gameId}" not visible or does not exist`)
+    }
+    return {
+      gameName: game.name,
+      protected: game.protectedPassword !== null,
+      unlisted: game.unlisted,
+      createdAt: game.createdAt,
+      runState: game.state,
+      minimumPlayerCount: game.minPlayers,
+      maximumPlayerCount: game.maxPlayers,
+      maximumTurnCount: game.maxTurns,
+      parameters: [],
+      currentPlayerTurn: 0,
+      currentBoardColumnMin: game.tileWidthMin,
+      currentBoardRowMin: game.tileHeightMin,
+      currentBoardColumnMax: game.tileWidthMax,
+      currentBoardRowMax: game.tileHeightMax,
+      lastTurn: null,
+      players: [],
+    }
+  }
+
+  async handleLoadSegment(
+    _requestor: AccountInfo,
+    gameId: string,
+    x: integer,
+    y: integer,
+    width: integer,
+    height: integer,
+  ): Promise<SegmentTileCollection> {
+    const game = this.games[gameId]
+    if (game === undefined) {
+      throw new ServerError(404, 'NOT FOUND', `game "${gameId}" not visible or does not exist`)
+    }
+
+    const size: BoardSize = {
+      width: Math.min(MAX_RETURNED_WIDTH, width as number),
+      height: Math.min(MAX_RETURNED_HEIGHT, height as number),
+    }
+
+    const segments = hexTokensToSegment(
+      size, x, y, game,
+      createAlternatingEmptyTokenSegment(size, x * y, 6),
+    ).filter((v) => v.c !== null && v.c !== undefined)
+    return {
+      sizeX: size.width,
+      sizeY: size.height,
+      segments,
+    }
+  }
+}
 
 
 interface BoardSize {
@@ -163,7 +204,6 @@ export function createAlternatingTokenSegment(
     tokens[i] = {
       ...ALL_NON_EMPTY_TILES[(i + startIndex) % ALL_NON_EMPTY_TILES.length],
       height: calculateHeight(i, tokenSize, heightType),
-      tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
   return tokens
@@ -181,7 +221,6 @@ export function createAlternatingEmptyTokenSegment(
     tokens[i] = {
       ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
       height: calculateHeight(i, tokenSize, heightType),
-      tokenId: (23 * size.width * size.height * startIndex) + i,
     }
   }
   return tokens
@@ -262,7 +301,6 @@ export const EMPTY_TILE: TestTile = {
   category: null,
   variation: 0,
   height: -2,
-  tokenId: 0,
 }
 
 
@@ -270,63 +308,54 @@ const RED_TILE: TestTile = {
   category: 'red',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const GREEN_TILE: TestTile = {
   category: 'green',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const BLUE_TILE: TestTile = {
   category: 'blue',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const YELLOW_TILE: TestTile = {
   category: 'yellow',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const CYAN_TILE: TestTile = {
   category: 'cyan',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const MAGENTA_TILE: TestTile = {
   category: 'magenta',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const MOUNTAIN_TILE: TestTile = {
   category: 'mountain',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const WATER_TILE: TestTile = {
   category: 'water',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const DESERT_TILE: TestTile = {
   category: 'desert',
   variation: 0,
   height: 0,
-  tokenId: 0,
 }
 
 const ALL_TILES = [EMPTY_TILE, RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_TILE, MAGENTA_TILE, MOUNTAIN_TILE, WATER_TILE, DESERT_TILE]
@@ -344,7 +373,7 @@ const ALL_NON_EMPTY_TILES = [RED_TILE, GREEN_TILE, BLUE_TILE, YELLOW_TILE, CYAN_
 function hexTokensToSegment(
   size: BoardSize,
   x: number, y: number,
-  tokenIdCounter: integer[],
+  game: GameInfo,
   tokens: (TestTile | null)[],
 ): SegmentTile[] {
   const tokenSize = getTokenBoardSize(size)
@@ -369,7 +398,7 @@ function hexTokensToSegment(
           const category = token.category
           if (category !== null) {
             // Eventually, have real parameters.
-            const tokenId = tokenIdCounter[0]++
+            const tokenId = game.lastTokenId++
 
             tiles.push({
               c: category,

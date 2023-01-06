@@ -67,7 +67,7 @@ export default class GameLoadScene extends Phaser.Scene {
             gameName: data.gameName,
             protected: data.protected,
             unlisted: data.unlisted,
-            createdAt: data.createdAt,
+            createdAt: data.createdAt.getTime(),
             runState: convertRunStateValue(data.runState),
             minimumPlayerCount: data.minimumPlayerCount,
             maximumPlayerCount: data.maximumPlayerCount,

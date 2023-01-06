@@ -29,10 +29,10 @@ export interface GameTurn {
   activePlayerIndex: number
 
   // When the turn started.  Helps keep track of a history.
-  turnStarted: Date
+  turnStarted: integer
 
   // When the turn ended.  Not valid for an active turn.
-  turnEnded: Date | null
+  turnEnded: integer | null
 
   // The action performed by the player.  A do-nothing (null)
   //   action may be allowed.

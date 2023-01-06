@@ -70,6 +70,7 @@ export function parseGameParameters(data: JsonLookup): ParsedValue<GameParameter
   const createdAt = data.asDate('createdAt')
   const minimumPlayerCount = data.asInt('minimumPlayerCount')
   const maximumPlayerCount = data.asInt('maximumPlayerCount')
+  const maximumTurnCount = data.asInt('maximumTurnCount')
   const currentPlayerTurn = data.asInt('currentPlayerTurn')
   const currentBoardColumnMin = data.asInt('currentBoardColumnMin')
   const currentBoardRowMin = data.asInt('currentBoardRowMin')
@@ -90,6 +91,7 @@ export function parseGameParameters(data: JsonLookup): ParsedValue<GameParameter
       && createdAt !== undefined
       && minimumPlayerCount !== undefined
       && maximumPlayerCount !== undefined
+      && maximumTurnCount !== undefined
       && currentBoardColumnMin !== undefined
       && currentBoardRowMin !== undefined
       && currentBoardColumnMax !== undefined
@@ -107,6 +109,7 @@ export function parseGameParameters(data: JsonLookup): ParsedValue<GameParameter
       createdAt,
       minimumPlayerCount,
       maximumPlayerCount,
+      maximumTurnCount,
       parameters,
       currentBoardColumnMin,
       currentBoardRowMin,
@@ -122,6 +125,7 @@ export function parseGameParameters(data: JsonLookup): ParsedValue<GameParameter
     runState: mustBeDefined(runState),
     minimumPlayerCount: mustBeDefined(minimumPlayerCount),
     maximumPlayerCount: mustBeDefined(maximumPlayerCount),
+    maximumTurnCount: mustBeDefined(maximumTurnCount),
     currentBoardColumnMin: mustBeDefined(currentBoardColumnMin),
     currentBoardRowMin: mustBeDefined(currentBoardRowMin),
     currentBoardColumnMax: mustBeDefined(currentBoardColumnMax),
@@ -238,18 +242,22 @@ export function parseGameTileParameter(data: JsonLookup): GameTileParameter | un
 export function parseServerParameters(data: JsonLookup): ParsedValue<ServerParameters> {
   const maximumTileWidth = data.asInt('maximumTileWidth')
   const maximumTileHeight = data.asInt('maximumTileHeight')
+  const maximumPlayerCount = data.asInt('maximumPlayerCount')
   if (
     maximumTileWidth !== undefined
     && maximumTileHeight !== undefined
+    && maximumPlayerCount !== undefined
   ) {
     return parsedOk({
       maximumTileWidth,
       maximumTileHeight,
+      maximumPlayerCount,
     })
   }
   return parsedProblems({
     maximumTileWidth: mustBeDefined(maximumTileWidth),
     maximumTileHeight: mustBeDefined(maximumTileHeight),
+    maximumPlayerCount: mustBeDefined(maximumPlayerCount),
   })
 }
 

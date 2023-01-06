@@ -128,13 +128,14 @@ export interface ServerParameters {
   // Possible future enhancements:
   //   Game Modes Supported
 
-  //   Maximum number of players in a game
-
   // maximumTileWidth Maximum count of tiles along the x-axis to fetch in a single request.
   maximumTileWidth: integer
 
   // maximumTileHeight Maximum count of tiles along the y-axis to fetch in a single request.
   maximumTileHeight: integer
+
+  // maximumPlayerCount maximum number of players in a single game or game lobby.
+  maximumPlayerCount: integer
 }
 
 
@@ -192,6 +193,7 @@ export interface GameParameters {
   // Once the game starts, these are unmodifiable.
   minimumPlayerCount: integer
   maximumPlayerCount: integer
+  maximumTurnCount: integer
   parameters: GameTileParameter[]
 
   // currentPlayerTurn only has meaning for RUNNING state.

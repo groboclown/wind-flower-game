@@ -21,14 +21,19 @@ import {
 export interface RestApiConnection {
   // setServerPublicKey called based on parameters embedded in the HTML
   //   Because it's embedded in the HTML, that means it came from the server.
-  setServerPublicKey(key: string): void
+  setServerPublicKey(key: string): Promise<void>
 
   // setAccountConnectionInformation set how the connection will mark the authorization information
   //   Either set based on cached client information or on create account requests.
-  setAccountConnectionInformation(accountId: string, accountPrivateKey: string): void
+  setAccountConnectionInformation(
+    accountId: string, accountPrivateKey: string, passKey: string
+  ): Promise<void>
 
-  getJson(path: string, parameters: JSONValueType): Promise<JsonLookup>
-  postJson(path: string, parameters: JSONValueType): Promise<JsonLookup>
+  getJson(path: string, parameters?: {[keys: string]: string | integer}): Promise<JsonLookup>
+  postJson(path: string, body?: JSONValueType): Promise<JsonLookup>
+
+  // send a POST request without local account information.
+  postAnonymousJson(path: string, body?: JSONValueType): Promise<JsonLookup>
 }
 
 
@@ -44,7 +49,7 @@ export class HostApi {
 
   // createAccount request a new account from the server
   async createAccount(): Promise<NewAccount> {
-    const data = await this.connection.postJson('/account', {})
+    const data = await this.connection.postAnonymousJson('/account', {})
     return await asType('create account', parseNewAccount(data))
   }
 

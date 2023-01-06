@@ -3,6 +3,7 @@
 import { ClientGameBoard, TileParameterType, ClientTile, ClientGameBoardSegment } from './state'
 import { GameBoardRequests, GameBoardStatusHandler } from './events'
 import { HostApi } from '../server/api'
+import { nonnegativeRemainder } from '../lib/math'
 import { GameBoardManager } from './manager'
 import { CATEGORY_UNSET, CATEGORY_LOADING, CATEGORY_EMPTY, CATEGORY_PLACEABLE } from './asset-names'
 
@@ -312,7 +313,11 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
     // Now we can report the segment as loaded.
     self.callbacks.forEach((cb) => {
-      cb.handler.onSegmentLoaded(segment.x, segment.y, segment.segmentId)
+      try {
+        cb.handler.onSegmentLoaded(segment.x, segment.y, segment.segmentId)
+      } catch (e) {
+        console.log(e)
+      }
     })
   }
 
@@ -405,23 +410,13 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
 
 function getHexTileIndex(absX: integer, absY: integer): integer {
-  let col3 = absX % 3
-  if (col3 < 0) {
-    col3 += 3
-  }
-  let row2 = absY % 2
-  if (row2 < 0) {
-    row2 += 2
-  }
-  let col6 = absX % 6
-  if (col6 < 0) {
-    col6 += 6
-  }
+  const col6 = nonnegativeRemainder(absX, 6)
+  const row2 = nonnegativeRemainder(absY, 2)
   if (col6 >= 3) {
-    // odd token, so inverse the row as it's offset by 1.
-    row2 = 1 - row2
+    // odd token.
+    return (col6 - 3) + ((1 - row2) * 3)
   }
-  return col3 + (row2 * 3)
+  return col6 + (row2 * 3)
 }
 
 

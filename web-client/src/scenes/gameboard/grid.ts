@@ -657,7 +657,7 @@ export class Grid3d {
           const tile = segment.tiles[tileIdx]
 
           // Update pointers
-console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
+// console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segmentId} (${col - segment.x}, ${row - segment.y}) @ ${tileIdx}`)
           const gridTile = this.gridTiles[gridTileIndex]
           gridTile.x = col
           gridTile.y = row
@@ -719,7 +719,7 @@ console.debug(`G${gridTileIndex}: world (${col}, ${row}), segment ${segment.segm
           // -------------------------------
           // Update the mesh values
 
-console.debug(` ${crOdd}: (${ax}, ${az}), (${bx}, ${bz}), (${cx}, ${cz})`)
+// console.debug(` ${crOdd}: (${ax}, ${az}), (${bx}, ${bz}), (${cx}, ${cz})`)
           // TODO it may be faster to avoid this hidden index lookup and instead
           //   do it ourselves, then perform an array copy at the end.
           //   That would mean the height (y) doesn't need to be messed with

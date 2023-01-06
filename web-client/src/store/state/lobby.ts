@@ -71,7 +71,9 @@ export interface GameMode {
 export interface RunningState {
   // currentPlayerIndexTurn whose turn is it?
   currentPlayerIndexTurn: integer
-  currentTurnStartedAt: Date
+
+  // currentTurnStartedAt cannot store Date instances in a redux store, so this is the time.
+  currentTurnStartedAt: integer
 
   boardMinColumn: integer
   boardMinRow: integer
@@ -174,7 +176,7 @@ export const gameLobbyReducer = createReducer(
             currentPlayerIndexTurn: action.payload.currentPlayerTurn,
             currentTurnStartedAt:
               action.payload.lastTurn === null
-                ? new Date()
+                ? Date.now()
                 : action.payload.lastTurn.turnCompletedAt,
 
             // TODO fill in the player scores

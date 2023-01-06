@@ -3,7 +3,7 @@ import Phaser from 'phaser'
 import { Unsubscribe } from 'redux'
 import { GAME_LOAD_SCENE_NAME, MAINMENU_SCENE_NAME } from '../names'
 import { initializeSinglePlayerServer, getRestApiConnection } from '../../server/connection'
-import { TestDataGeneratorApiConnection, MAX_RETURNED_WIDTH, MAX_RETURNED_HEIGHT } from './test-data'
+import { createMassDataMockServer } from './test-data'
 import {
   createdGameLobby,
   gameLobbyStateChanged,
@@ -13,6 +13,7 @@ import {
   store,
 } from '../../store'
 import { AllServers } from '../../assets'
+import { HostApi } from '../../server'
 
 
 const EVENT__START_GAME = "start game"
@@ -52,40 +53,64 @@ export default class MainMenuScene extends Phaser.Scene {
 
 
     // Mock up what the main menu game start is supposed to do.
+    Promise.resolve(null).then(async () => {
+      // - choose a server.
+      //   This should be its own set of scenes.
+      const serverSetup = await createMassDataMockServer('https://test.server.name')
+      initializeSinglePlayerServer(serverSetup.connection)
+      const serverConnection = getRestApiConnection()
 
-    // - choose a server.
-    initializeSinglePlayerServer(new TestDataGeneratorApiConnection('game1'))
-    const serverListInfo = this.cache.json.get('server-info') as AllServers
-    if (serverListInfo.servers.length > 0) {
-      getRestApiConnection().setServerPublicKey(atob(serverListInfo.servers[0].publicKeyBase64))
-    }
+      const serverListInfo = this.cache.json.get('server-info') as AllServers
+      if (serverListInfo.servers.length > 0) {
+        // serverConnection.setServerPublicKey(atob(serverListInfo.servers[0].publicKeyBase64))
+        serverConnection.setServerPublicKey(serverSetup.serverPublicKey)
+      }
+      const hostApi = new HostApi(serverConnection)
+      // Should be using an existing account, but...
+      const createdAccount = await hostApi.createAccount()
+      await serverConnection.setAccountConnectionInformation(
+        createdAccount.accountId, createdAccount.privateKey, ''
+      )
 
-    // - Get information on the server.
-    //   This should be done via the server API during the game lobby.
-    store.dispatch(updateServerPerformanceInformation({
-      maximumBoardSegmentWidth: MAX_RETURNED_WIDTH,
-      maximumBoardSegmentHeight: MAX_RETURNED_HEIGHT,
-      maximumPlayerCount: 1,
-    }))
+      // - Get information on the server.
+      const serverInfo = await hostApi.getServerParameters()
+      store.dispatch(updateServerPerformanceInformation({
+        maximumBoardSegmentWidth: serverInfo.maximumTileWidth,
+        maximumBoardSegmentHeight: serverInfo.maximumTileHeight,
+        maximumPlayerCount: serverInfo.maximumPlayerCount,
+      }))
 
-    // - Create a new game lobby
-    //   Should be done via server API
-    store.dispatch(createdGameLobby({
-      gameId: 'game1',
-      gameName: 'Test',
-      players: [],
-      clientPlayerIndex: 0,
-      gameLobbyState: GAME_LOBBY_STATE__WAITING_FOR_PLAYERS,
-      maximumPlayerCount: 1,
-      maximumTurnCount: 10000,
-      parameters: [],
-    }))
+      // - Create a new game lobby
+      //   This should be a separate scene, for the pre-game stuff.
+      //   Stuff like, list existing games, join an existing game,
+      //   join an unlisted game, create a game.
+      //   That will then put to yet another scene, for the game lobby
+      //   (if it's in the 'lobby' state).
+      const gameLobbyId = await hostApi.startGameLobby('Test Game', 2)
 
-    // - Start the game.
-    //   Should be done by the server state change poll or web sockets.
-    store.dispatch(gameLobbyStateChanged({
-      newState: GAME_LOBBY_STATE__RUNNING,
-    }))
+      // - After joining a game lobby, even if it was just created, immediately query it.
+      const gameLobby = await hostApi.getGameParameters(gameLobbyId.gameId)
+
+      // Currently, always set the game state to waiting on players.
+      //   If the state is actually in-progress, then immediately change
+      //   the state with store.dispatch(gameLobbyStateChanged(...))
+      store.dispatch(createdGameLobby({
+        gameId: gameLobbyId.gameId,
+        gameName: gameLobby.gameName,
+        players: [],  // TODO replace
+        clientPlayerIndex: 0,  // TODO replace
+        gameLobbyState: GAME_LOBBY_STATE__WAITING_FOR_PLAYERS,  // TODO replace
+        maximumPlayerCount: gameLobby.maximumPlayerCount,
+        maximumTurnCount: gameLobby.maximumTurnCount,
+        parameters: [],  // TODO replace
+      }))
+
+      // - Start the game.
+      //   Should be done by the server state change poll or web sockets.
+      store.dispatch(gameLobbyStateChanged({
+        newState: GAME_LOBBY_STATE__RUNNING,
+      }))
+    })
   }
 
   // Remove the state listener when the scene is no longer active.
