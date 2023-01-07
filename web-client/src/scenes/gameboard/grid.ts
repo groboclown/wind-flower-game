@@ -132,7 +132,7 @@ const SIDE_LENGTH = 1.0
 const SIDE_LENGTH_HALF = SIDE_LENGTH / 2.0
 const SLOPE = 1.0 / Math.sqrt(3.0)
 const BASE_LENGTH = SIDE_LENGTH_HALF * Math.sqrt(3.0)
-const HEIGHT_SCALE = 0.8
+const HEIGHT_SCALE = 0.2
 const EMPTY_TILE_HEIGHT = -5
 
 const UPDATE_GRID_RATIO = 0.8
@@ -681,6 +681,8 @@ export class Grid3d {
           gridTile.vertexC = vertexIndex + 2
 
           // Is this an even or odd triangle?
+          //   Could store this per triangle, but it's a cheap calculation.
+          //   Note that this doesn't need negative checks.
           const crOdd = (row + col) & 0x1
 
           // -------------------------------------
@@ -697,6 +699,8 @@ export class Grid3d {
           let cx = x + SIDE_LENGTH
           let cz = bz
 
+          // Height positions were already computed for the correct
+          //   odd/even flipped vertex.
           const ay = tile.vertexHeight[0] * HEIGHT_SCALE
           const by = tile.vertexHeight[1] * HEIGHT_SCALE
           const cy = tile.vertexHeight[2] * HEIGHT_SCALE
@@ -996,7 +1000,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 0,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1008,7 +1011,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 1,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1020,7 +1022,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 2,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1032,7 +1033,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 3,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1044,7 +1044,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 4,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1056,7 +1055,6 @@ const LOADING_TILES: ClientTile[] = [
     height: EMPTY_TILE_HEIGHT,
     parameters: {},
     tokenHexTileIndex: 5,
-    adjacentTokenTileCount: 0,
     vertexHeight: [0, 0, 0],
     vertexHeightSum: [0, 0, 0],
     vertexHeightCount: [0, 0, 0],
@@ -1173,6 +1171,10 @@ class SegmentManager {
       x: this.normalizeArray[0],
       y: this.normalizeArray[1],
       segmentId: segId,
+
+      // FIXME by just blanketing the loading tiles here, the
+      //   hex position may be off, because it's not necessarily at offset 0
+      //   for this load.
       tiles: this.loadingTiles,
     }
     this.currentVisibleSegments[segId] = seg

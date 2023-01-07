@@ -42,7 +42,6 @@ const EMPTY_TILE: ClientTile = {
 
   // Not used by the old grid.
   tokenHexTileIndex: 0,
-  adjacentTokenTileCount: 0,
   vertexHeight: [0, 0, 0],
   vertexHeightSum: [0, 0, 0],
   vertexHeightCount: [0, 0, 0],

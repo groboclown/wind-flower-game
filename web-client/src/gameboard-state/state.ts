@@ -48,11 +48,6 @@ export interface ClientTile {
 
   // Dynamic client extrapolated data - changes only based on server data changes
 
-  // Number of tiles that are considered "adjacent" to this one.  If one token
-  // is adjacent to this tile's token, then all that token's tiles are adjacent.
-  // Therefore, this will end up being a multiple of 6 if everything's working right.
-  adjacentTokenTileCount: integer
-
   // Height calculation.
   //   When an adjacent tile is placed, its height is added here.
   //   At least the current tile's height must be here, and therefore the count > 0.

@@ -17,7 +17,6 @@ const EMPTY_TILE: ClientTile = {
 
   tokenHexTileIndex: 0,
 
-  adjacentTokenTileCount: 0,
   vertexHeight: [0, 0, 0],
   vertexHeightSum: [0, 0, 0],
   vertexHeightCount: [0, 0, 0],
@@ -35,7 +34,6 @@ const LOADING_TILE: ClientTile = {
 
   // These values must be all set to 0.  Calculations
   // on incremental segment loading expect it.
-  adjacentTokenTileCount: 0,
   vertexHeight: [0, 0, 0],
   vertexHeightSum: [0, 0, 0],
   vertexHeightCount: [0, 0, 0],
@@ -45,7 +43,6 @@ const LOADING_TILE: ClientTile = {
 function getAbsSegmentId(x: integer, y: integer): string {
   return `${x},${y}`
 }
-
 
 
 export class GameBoardManagerImpl implements GameBoardManager {
@@ -166,8 +163,12 @@ export class GameBoardManagerImpl implements GameBoardManager {
         // One time hex tile index discovery.
         tokenHexTileIndex: getHexTileIndex(col, row),
 
-        // The parameters need to be a new object, not a pointer to the same object.
+        // Non-scalar values must be new objects; without this,
+        //   they are just pointers to existing objects.
         parameters: {},
+        vertexHeight: [0, 0, 0],
+        vertexHeightSum: [0, 0, 0],
+        vertexHeightCount: [0, 0, 0],
       }
       emptyServerTiles[i] = i
       col++
@@ -205,10 +206,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
     const tileAddrCache: {[keys: string]: ClientTile | null} = {}
 
-    // TODO looks like the right thing to do here is:
-    //   1. Load in the server tiles into the client grid.
-    //   2. THEN inspect the client grid for updating adjacent.
-
+    // Load in tiles from the server response into the segment grid.
     serverTiles.segments.forEach((serverTile) => {
       const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
       delete emptyServerTiles[tileIndex]
@@ -230,14 +228,13 @@ export class GameBoardManagerImpl implements GameBoardManager {
       }
     })
 
-
-
+    // Clean up empty tiles.
     Object.values(emptyServerTiles).forEach((tileIndex) => {
       const tile = tiles[tileIndex]
-      // TODO detect if it's placeable.
       tile.category = CATEGORY_EMPTY
     })
 
+    // Now that all the tiles are loaded, perform inspection.
     let tileX = segment.x
     const maxTileX = segment.x + width
     let tileY = segment.y
@@ -252,12 +249,14 @@ export class GameBoardManagerImpl implements GameBoardManager {
       self.populateAdjacentTilesTo(
         tileX, tileY, tile.tokenHexTileIndex, tileAddrCache, self.tmpAdjacentTiles
       )
-      if (self.tmpAdjacentTiles[0] !== null && self.tmpAdjacentTiles[0].category === CATEGORY_EMPTY) {
+      if (tile.category !== CATEGORY_EMPTY && tile.category !== CATEGORY_PLACEABLE) {
         for (let i = 0; i < 6; i++) {
-          const other = self.tmpAdjacentTiles[i] as ClientTile
-          // FIXME this doesn't identify the tiles right.
-          other.adjacentTokenTileCount++
-          other.category = CATEGORY_PLACEABLE
+          const other = self.tmpAdjacentTiles[i]
+          // Should be able to test this outside the loop, but edges can have null,
+          //   so, edge case on edges.
+          if (other !== null && other.category === CATEGORY_EMPTY) {
+            other.category = CATEGORY_PLACEABLE
+          }
         }
       }
 
@@ -379,7 +378,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
     }
     const relCol = x - this.tmpNormalizedPair[0]
     const relRow = y - this.tmpNormalizedPair[1]
-    const tileIndex = relCol + (relRow * this.board.boardWidth)
+    const tileIndex = relCol + (relRow * this.board.segmentWidth)
     ret = segment.tiles[tileIndex]
     if (ret === undefined) {
       cache[key] = null
