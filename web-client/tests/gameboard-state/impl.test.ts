@@ -87,6 +87,14 @@ describe('game board manager implementation', () => {
           expect(seg00.tiles[startIndex     + width].category).toBe(CATEGORY_EMPTY)
           expect(seg00.tiles[startIndex + 1 + width].category).toBe(CATEGORY_EMPTY)
           expect(seg00.tiles[startIndex + 2 + width].category).toBe(CATEGORY_EMPTY)
+
+          for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+              expect(seg00.tiles[startIndex + i].vertexHeightCount[j]).toBe(1)
+              expect(seg00.tiles[startIndex + i].vertexHeightSum[j]).toBe(0)
+              expect(seg00.tiles[startIndex + i].vertexHeight[j]).toBe(0)
+            }
+          }
         })
 
         // check discovered adjacent tiles

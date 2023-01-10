@@ -261,6 +261,8 @@ export class GameBoardManagerImpl implements GameBoardManager {
       }
 
       // Find the surrounding tiles for the 3 verticies to calculate the height.
+      // This must be done very carefully.  We must make sure we correctly count
+      //   the adjacent tiles to ensure each triangle's vertices have the same height.
       const vertexPointsRel = TILE_VERTEX_INDEX_ADJACENT[tile.tokenHexTileIndex]
       for (let vIdx = 0; vIdx < 3; vIdx++) {
         // Each vertex has 3 tiles that impact the height.
@@ -281,21 +283,29 @@ export class GameBoardManagerImpl implements GameBoardManager {
         tile.vertexHeight[vIdx] = tile.vertexHeightSum[vIdx] / tile.vertexHeightCount[vIdx]
       }
 
-      // Push this height into the adjacent 4 tiles of the shared vertex.
-      // Note that, due to the height reset that's done after a tile load, this really
-      //   only has an impact on tiles along the edges of adjacent segments, and on
-      //   segments that were loaded before this one was loaded in the current segment.
-      const otherTilesVertexRel = TILE_VERTEX_INDEX_ADJUSTS_ADJACENT[tile.tokenHexTileIndex]
-      for (let tIdx = 0; tIdx < 4; tIdx++) {
-        const tileVertexRel = otherTilesVertexRel[tIdx]
-        const other = self.getTileAt(tileX + tileVertexRel[0], tileY + tileVertexRel[1], tileAddrCache)
-        if (other !== null) {
-          const vIdx = tileVertexRel[2]
-          other.vertexHeightSum[vIdx] += tile.height
-          other.vertexHeightCount[vIdx]++
-          other.vertexHeight[vIdx] = other.vertexHeightSum[vIdx] / other.vertexHeightCount[vIdx]
+
+      // For the edges of other segments that have already been loaded, the height must
+      //   be adjusted to take the new location into account.  So push this tile's height
+      //   into the adjacent 4 tiles' vertex heights.
+      if (
+          tileX <= segment.x || tileX >= maxTileX - 1
+          || tileY <= segment.y || tileY >= segment.y + height
+      ) {
+        const otherTilesVertexRel = TILE_VERTEX_INDEX_ADJUSTS_ADJACENT[tile.tokenHexTileIndex]
+        for (let tIdx = 0; tIdx < 4; tIdx++) {
+          const tileVertexRel = otherTilesVertexRel[tIdx]
+          const other = self.getTileAt(tileX + tileVertexRel[0], tileY + tileVertexRel[1], tileAddrCache)
+          if (other !== null) {
+            const vIdx = tileVertexRel[2]
+            if (other.vertexHeightCount[vIdx] < 3) {
+              other.vertexHeightSum[vIdx] += tile.height
+              other.vertexHeightCount[vIdx]++
+              other.vertexHeight[vIdx] = other.vertexHeightSum[vIdx] / other.vertexHeightCount[vIdx]
+            }
+          }
         }
       }
+
 
       // End of loop increment.
       tileX++
