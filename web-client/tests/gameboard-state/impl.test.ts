@@ -1,6 +1,5 @@
 // Test the game board manager implementation
-import {describe, expect} from '@jest/globals'
-import { asit } from '../utils/asit'
+import { describe, it, expect } from '@jest/globals'
 import { GameBoardManagerImpl } from '../../src/gameboard-state/impl'
 import { CATEGORY_EMPTY, CATEGORY_PLACEABLE } from '../../src/gameboard-state/asset-names'
 import { createAccount, MockHostApi, SegmentDataServer } from '../mocks/host-api'
@@ -50,7 +49,7 @@ describe('game board manager implementation', () => {
       ]
       const hostApi = new MockHostApi(server, mockAccount.account)
 
-      asit('Marks surrounding tiles as adjacent', async () => {
+      it('marks surrounding tiles as adjacent for single segment', async () => {
         const width = 16
         const height = 9
         const impl = new GameBoardManagerImpl(hostApi, 'game', width, height, [])
@@ -87,14 +86,6 @@ describe('game board manager implementation', () => {
           expect(seg00.tiles[startIndex     + width].category).toBe(CATEGORY_EMPTY)
           expect(seg00.tiles[startIndex + 1 + width].category).toBe(CATEGORY_EMPTY)
           expect(seg00.tiles[startIndex + 2 + width].category).toBe(CATEGORY_EMPTY)
-
-          for (let i = 0; i < 3; i++) {
-            for (let j = 0; j < 3; j++) {
-              expect(seg00.tiles[startIndex + i].vertexHeightCount[j]).toBe(1)
-              expect(seg00.tiles[startIndex + i].vertexHeightSum[j]).toBe(0)
-              expect(seg00.tiles[startIndex + i].vertexHeight[j]).toBe(0)
-            }
-          }
         })
 
         // check discovered adjacent tiles
@@ -107,6 +98,64 @@ describe('game board manager implementation', () => {
           expect(seg00.tiles[startIndex + 1 + width].category).toBe(CATEGORY_PLACEABLE)
           expect(seg00.tiles[startIndex + 2 + width].category).toBe(CATEGORY_PLACEABLE)
         })
+      })
+
+      it('computes edge heights correctly', async () => {
+        const width = 16
+        const height = 9
+        const impl = new GameBoardManagerImpl(hostApi, 'game', width, height, [])
+        await impl.loadSegment('0,0', 0, 0)
+        const seg00 = impl.board.segments['0,0']
+
+        for (let x = 0; x < width; x++) {
+          let y = 0
+          const tileIdx = x + (y * width)
+          const tile = seg00.tiles[tileIdx]
+          let vertexWith3a = -1
+          let vertexWith3b = -1
+          switch (tile.tokenHexTileIndex) {
+            // The center vertex will always have 3 items in it.
+
+            case 0:
+              // Top hex token.  Vertex A (index 0) is at the top, Vertex C (2)
+              //   is in the middle of the hex.  Vertex B (index 1) is conditionally
+              //   built up with the left token.
+              vertexWith3a = 2
+              if (x > 0) {
+                vertexWith3b = 1
+              }
+              break
+            case 1:
+              vertexWith3a = 0
+              break
+            case 2:
+              vertexWith3a = 2
+              break
+            case 3:
+              vertexWith3a = 1
+              break
+            case 4:
+              vertexWith3a = 1
+              vertexWith3b = 2
+              break
+            case 5:
+              vertexWith3a = 2
+              if (x < width - 1) {
+                vertexWith3b = 1
+              }
+              break
+          }
+          for (let vIdx = 0; vIdx < 3; vIdx++) {
+            if (vIdx === vertexWith3a || vIdx === vertexWith3b) {
+              expect(tile.vertexHeightCount[vIdx]).toBe(3)
+            } else {
+              expect(tile.vertexHeightCount[vIdx]).toBe(1)
+            }
+          }
+
+          // Now the bottom row
+          // y = height - 1
+        }
       })
     })
   })

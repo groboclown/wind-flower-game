@@ -235,9 +235,25 @@ export class GameBoardManagerImpl implements GameBoardManager {
     })
 
     // Now that all the tiles are loaded, perform inspection.
+
+    // The 8 adjacent segments must have their adjoining triangles
+    //   be recomputed when this segment is loaded.
+    //   We can't just perform simple updates, because this segment may
+    //   have been unloaded.  That means that, on reload, it could throw
+    //   off the count.
+
+    // TODO:
+    // So, this will need to perform standard triangle checks, including
+    //   for edges; if a segment is not loaded, then it is not included in the count.
+    // Then, because this current segment just loaded, scan through the edges of the
+    //   4 adjacent and the 4 adjacent corner segments and recalculate those
+    //   triangles.
+
+
     let tileX = segment.x
     const maxTileX = segment.x + width
     let tileY = segment.y
+    const maxTileY = segment.y + height
     for (let tileIdx = 0; tileIdx < segment.tiles.length; tileIdx++) {
       const tile = segment.tiles[tileIdx]
 
@@ -284,13 +300,26 @@ export class GameBoardManagerImpl implements GameBoardManager {
       }
 
 
-      // For the edges of other segments that have already been loaded, the height must
-      //   be adjusted to take the new location into account.  So push this tile's height
-      //   into the adjacent 4 tiles' vertex heights.
-      if (
-          tileX <= segment.x || tileX >= maxTileX - 1
-          || tileY <= segment.y || tileY >= segment.y + height
-      ) {
+      // End of loop increment.
+      tileX++
+      if (tileX >= maxTileX) {
+        tileX = segment.x
+        tileY++
+      }
+    }
+
+
+    // For the edges of other segments that have already been loaded, the height must
+    //   be adjusted to take the new location into account.  So push this tile's height
+    //   into the adjacent 4 tiles' vertex heights.
+
+    //   Loop over the north and south edges tiles.
+    const horizY = [segment.y, maxTileY - 1]
+    for (tileX = segment.x; tileX < maxTileX; tileX++) {
+      for (let yIdx = 0; y < 2; y++) {
+        tileY = horizY[yIdx]
+        const tileIdx = tileX - segment.x + ((tileY - segment.y) * width)
+        const tile = segment.tiles[tileIdx]
         const otherTilesVertexRel = TILE_VERTEX_INDEX_ADJUSTS_ADJACENT[tile.tokenHexTileIndex]
         for (let tIdx = 0; tIdx < 4; tIdx++) {
           const tileVertexRel = otherTilesVertexRel[tIdx]
@@ -305,14 +334,9 @@ export class GameBoardManagerImpl implements GameBoardManager {
           }
         }
       }
+    }
+    for (tileY = segment.y; tileY < maxTileY; tileY++) {
 
-
-      // End of loop increment.
-      tileX++
-      if (tileX >= maxTileX) {
-        tileX = segment.x
-        tileY++
-      }
     }
 
     // The board state just changed again, so update the load id.
