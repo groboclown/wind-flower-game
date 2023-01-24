@@ -8,21 +8,6 @@ import { GameBoardManager } from './manager'
 import { CATEGORY_UNSET, CATEGORY_LOADING, CATEGORY_EMPTY, CATEGORY_PLACEABLE } from './asset-names'
 
 
-const EMPTY_TILE: ClientTile = {
-  tokenId: null,
-  category: CATEGORY_UNSET,
-  variation: 0,
-  height: 0,
-  parameters: {},
-
-  tokenHexTileIndex: 0,
-
-  vertexHeight: [0, 0, 0],
-  vertexHeightSum: [0, 0, 0],
-  vertexHeightCount: [0, 0, 0],
-}
-
-
 function getAbsSegmentId(x: integer, y: integer): string {
   return `${x},${y}`
 }
@@ -79,12 +64,12 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
       loadId: 0,
 
-      clientPlacedTile0: {...EMPTY_TILE},
-      clientPlacedTile1: {...EMPTY_TILE},
-      clientPlacedTile2: {...EMPTY_TILE},
-      clientPlacedTile3: {...EMPTY_TILE},
-      clientPlacedTile4: {...EMPTY_TILE},
-      clientPlacedTile5: {...EMPTY_TILE},
+      clientPlacedTile0: createEmptyTile(CATEGORY_UNSET, 0, 0),
+      clientPlacedTile1: createEmptyTile(CATEGORY_UNSET, 0, 0),
+      clientPlacedTile2: createEmptyTile(CATEGORY_UNSET, 0, 0),
+      clientPlacedTile3: createEmptyTile(CATEGORY_UNSET, 0, 0),
+      clientPlacedTile4: createEmptyTile(CATEGORY_UNSET, 0, 0),
+      clientPlacedTile5: createEmptyTile(CATEGORY_UNSET, 0, 0),
       clientPlacedTokenX: 0,
       clientPlacedTokenY: 0,
       clientPlacedSegmentId: "",
@@ -140,22 +125,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
     const lastCol = x + width
     let row = y
     for (let i = 0; i < count; i++) {
-      tiles[i] = {
-        tokenId: null,
-        category: CATEGORY_LOADING,
-        variation: 0,
-        height: 0,
-
-        // One time hex tile index discovery.
-        tokenHexTileIndex: getHexTileIndex(col, row),
-
-        // Non-scalar values must be new objects; without this,
-        //   they are just pointers to existing objects.
-        parameters: {},
-        vertexHeight: [0, 0, 0],
-        vertexHeightSum: [0, 0, 0],
-        vertexHeightCount: [0, 0, 0],
-      }
+      tiles[i] = createEmptyTile(CATEGORY_LOADING, col, row)
       emptyServerTiles[i] = i
       col++
       if (col >= lastCol) {
@@ -453,11 +423,14 @@ export class GameBoardManagerImpl implements GameBoardManager {
 
 function getHexTileIndex(absX: integer, absY: integer): integer {
   const col6 = nonnegativeRemainder(absX, 6)
-  const row2 = nonnegativeRemainder(absY, 2)
+  // Optimization for the "% 2" case.
+  // const row2 = nonnegativeRemainder(absY, 2)
+  const row2 = absY & 0x1
   if (col6 >= 3) {
-    // odd token.
+    // odd token.  Reverse the row so 1 -> 0 and 0 -> 1.
     return (col6 - 3) + ((1 - row2) * 3)
   }
+  // col6 < 3, so the column is in the right value.
   return col6 + (row2 * 3)
 }
 
@@ -746,5 +719,26 @@ class CallbackRequest implements GameBoardRequests {
     }
     // TODO FIXME
   }
+}
 
+function createEmptyTile(
+  category: string | null,
+  col: integer, row: integer,
+): ClientTile {
+  return {
+    tokenId: null,
+    category,
+    variation: 0,
+    height: 0,
+
+    // One time hex tile index discovery.
+    tokenHexTileIndex: getHexTileIndex(col, row),
+
+    // Non-scalar values must be new objects; without this,
+    //   they are just pointers to existing objects.
+    parameters: {},
+    vertexHeight: [0, 0, 0],
+    vertexHeightSum: [0, 0, 0],
+    vertexHeightCount: [0, 0, 0],
+  }
 }

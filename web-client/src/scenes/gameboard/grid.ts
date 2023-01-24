@@ -411,7 +411,7 @@ export class Grid3d {
   // the column is off by 1 in either direction.
   // Use populateTileAtTarget for an accurate computation.
   populateSimplifiedTileAtTarget(target: THREE.Vector3, tilePos: integer[], startIndex: integer = 0) {
-    tilePos[startIndex] = (target.x / SIDE_LENGTH) | 0
+    tilePos[startIndex] = (target.x / SIDE_LENGTH_HALF) | 0
     tilePos[startIndex + 1] = (target.z / BASE_LENGTH) | 0
   }
 
@@ -520,9 +520,10 @@ export class Grid3d {
     // We don't need an accurate computation to determine the new target position.
     // A rough one is sufficient, because we're finding it based on the nearest hexagon token.
     this.populateSimplifiedTileAtTarget(cameraTarget, this.tilePositionCache)
-    this.targetTilePositionColumn = this.tilePositionCache[0] - (this.tilePositionCache[0] % 3)
-    this.targetTilePositionRow = (this.tilePositionCache[1] >> 1) * 2
-    if (this.targetTilePositionColumn % 6 >= 3) {
+    this.targetTilePositionColumn = this.tilePositionCache[0] // this.tilePositionCache[0] - nonnegativeRemainder(this.tilePositionCache[0], 3)
+    this.targetTilePositionRow = this.tilePositionCache[1] // (this.tilePositionCache[1] >> 1) * 2
+    console.log(`Camera @ ${cameraTarget.x}, ${cameraTarget.z} -> tile ${this.targetTilePositionColumn}, ${this.targetTilePositionRow}`)
+    if (nonnegativeRemainder(this.targetTilePositionColumn, 6) >= 3) {
       // Odd token column, so row is offset.
       this.targetTilePositionRow++
     }
@@ -936,9 +937,12 @@ export class Grid3d {
     if (intersection.tokenTile0 !== null) {
       uvMap = this.textureHandler.getTileUVMap(intersection.tokenTile0, 0, mode.hoverOver, mode.selected)
       gt = this.gridTiles[intersection.gridIndex0]
-      uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
-      uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
-      uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+      // FIXME how does gt get to be undefined when tokenTile0 !== null?!?
+      if (gt !== undefined) {
+        uv.setXY(gt.vertexA, uvMap[0][0], uvMap[0][1])
+        uv.setXY(gt.vertexB, uvMap[1][0], uvMap[1][1])
+        uv.setXY(gt.vertexC, uvMap[2][0], uvMap[2][1])
+      }
     }
 
     if (intersection.tokenTile1 !== null) {
