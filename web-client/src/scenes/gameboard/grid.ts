@@ -509,6 +509,8 @@ export class Grid3d {
 
 
   // updateTarget the target moved, so the grid might need an update.
+  //  This is called with every tick, so needs to be very efficient
+  //  at the narrowing down on should-we-do-anything condition.
   updateGridAtTarget(cameraTarget: THREE.Vector3, force: boolean = false) {
     if (this.object === null) {
       return
@@ -516,13 +518,18 @@ export class Grid3d {
 
     const prevTargetColumn = this.targetTilePositionColumn
     const prevTargetRow = this.targetTilePositionRow
+    const posCache = this.tilePositionCache
 
     // We don't need an accurate computation to determine the new target position.
     // A rough one is sufficient, because we're finding it based on the nearest hexagon token.
-    this.populateSimplifiedTileAtTarget(cameraTarget, this.tilePositionCache)
-    this.targetTilePositionColumn = this.tilePositionCache[0] // this.tilePositionCache[0] - nonnegativeRemainder(this.tilePositionCache[0], 3)
-    this.targetTilePositionRow = this.tilePositionCache[1] // (this.tilePositionCache[1] >> 1) * 2
-    console.log(`Camera @ ${cameraTarget.x}, ${cameraTarget.z} -> tile ${this.targetTilePositionColumn}, ${this.targetTilePositionRow}`)
+    this.populateSimplifiedTileAtTarget(cameraTarget, posCache)
+    this.targetTilePositionColumn = posCache[0] - nonnegativeRemainder(posCache[0], 3)
+    this.targetTilePositionRow = posCache[1] - nonnegativeRemainder(posCache[1], 2)
+    // Optimization for "2" remainder.  Note that >> 1 keeps the sign, while >>> 1 doesn't.
+    //   Doesn't work right with negative numbers.  This needs to be re-examined.
+    // this.targetTilePositionRow = posCache[1] - ((posCache[1] >> 1) << 1)
+
+    // This could have a better setup with the remainder 3, but negative numbers make it ... awkward.
     if (nonnegativeRemainder(this.targetTilePositionColumn, 6) >= 3) {
       // Odd token column, so row is offset.
       this.targetTilePositionRow++
@@ -543,12 +550,15 @@ export class Grid3d {
       return
     }
 
-    if (lastLoadId !== currentGridLoadId) {
+    if (lastLoadId !== currentGridLoadId || force) {
       // The game board updated its state, due to something loading.
+      // Or, the request is forcing the whole grid to refresh.
       // Need to refresh the whole grid.
       this.updateGrid()
       return
     }
+
+    console.log(`Camera @ ${cameraTarget.x}, ${cameraTarget.z} -> tile ${this.targetTilePositionColumn}, ${this.targetTilePositionRow}`)
 
     // If a large ratio of tiles need to be updated, then recreate the
     // entire grid.

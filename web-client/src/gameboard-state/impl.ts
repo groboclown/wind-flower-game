@@ -119,14 +119,14 @@ export class GameBoardManagerImpl implements GameBoardManager {
     const width = self.board.segmentWidth
     const height = self.board.segmentHeight
     const count = width * height
-    const tiles: ClientTile[] = new Array<ClientTile>()
-    const emptyServerTiles: {[keys: integer]: integer} = {}
+    const tiles: ClientTile[] = new Array<ClientTile>(count)
     let col = x
     const lastCol = x + width
     let row = y
     for (let i = 0; i < count; i++) {
+      // Bug here - the loading tile has weird orientation for the
+      //   texture.  It's not even consistent across the board.
       tiles[i] = createEmptyTile(CATEGORY_LOADING, col, row)
-      emptyServerTiles[i] = i
       col++
       if (col >= lastCol) {
         col = x
@@ -165,7 +165,6 @@ export class GameBoardManagerImpl implements GameBoardManager {
     // Load in tiles from the server response into the segment grid.
     serverTiles.segments.forEach((serverTile) => {
       const tileIndex = (serverTile.x - x) + ((serverTile.y - y) * width)
-      delete emptyServerTiles[tileIndex]
       const tile = tiles[tileIndex]
       tile.category = serverTile.c
       tile.height = serverTile.h
@@ -182,13 +181,22 @@ export class GameBoardManagerImpl implements GameBoardManager {
         tile.vertexHeightCount[i] = 0
         tile.vertexHeight[i] = 0
       }
+
+      // The token hex index should still be the same.
     })
 
     // Clean up empty tiles.
-    Object.values(emptyServerTiles).forEach((tileIndex) => {
-      const tile = tiles[tileIndex]
-      tile.category = CATEGORY_EMPTY
-    })
+    //   Could keep track of untouched tiles.  However, that is a lot of memory
+    //   management, when a simple loop + 1 if is fairly lightweight when the segment
+    //   size is manageable.
+    //   Additionally, this code is already heavy on memory, so one more easy reduction
+    //   is a nice win.
+    for (let i = 0; i < count; i++) {
+      const tile = tiles[i]
+      if (tile.category === CATEGORY_LOADING) {
+        tile.category = CATEGORY_EMPTY
+      }
+    }
 
     // Now that all the tiles are loaded, perform inspection.
 
@@ -721,6 +729,7 @@ class CallbackRequest implements GameBoardRequests {
   }
 }
 
+// createEmptyTile create an initial tile for the given category, column, and row
 function createEmptyTile(
   category: string | null,
   col: integer, row: integer,

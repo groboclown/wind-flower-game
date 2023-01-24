@@ -53,7 +53,7 @@ export interface ClientTile {
   //   At least the current tile's height must be here, and therefore the count > 0.
   //   The A/B/C is based on the grid drawing.  These numbers are tightly coupled.
   //   The height is re-computed when a new tile is added.
-  //   The count for each of these values is always 3.
+  //   The number of values for each of these arrays is always 3, one per vertex.
   vertexHeight: integer[]
   vertexHeightSum: integer[]
   vertexHeightCount: integer[]
