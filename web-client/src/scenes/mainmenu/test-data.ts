@@ -18,9 +18,9 @@ import { SegmentTile, NewAccount } from '../../server/structs'
 
 
 // Must be a multiple of 3
-export const MAX_RETURNED_WIDTH = 12
+export const MAX_RETURNED_WIDTH = 6 * 3
 // Must be a multiple of 2
-export const MAX_RETURNED_HEIGHT = 14
+export const MAX_RETURNED_HEIGHT = 7 * 2
 
 
 interface TestTile {
@@ -152,7 +152,7 @@ class TestMassDataMockServer implements MockServer {
 
     const segments = hexTokensToSegment(
       size, x, y, game,
-      createAlternatingEmptyTokenSegment(size, x * y, 6),
+      createBorderedTokenSegment(size, x * y, 6),
     ).filter((v) => v.c !== null && v.c !== undefined)
     return {
       sizeX: size.width,
@@ -167,30 +167,6 @@ interface BoardSize {
   width: number
   height: number
 }
-
-/*
-export function createBoardRect(
-  segments: ClientGameBoardSegment[],
-  segmentSize: BoardSize,
-): BoardRect {
-  let minX = 1000000000
-  let maxX = -1000000000
-  let minY = 1000000000
-  let maxY = -1000000000
-
-  for (let i = 0; i < segments.length; i++) {
-    const segMinX = segments[i].x
-    const segMinY = segments[i].y
-    const segMaxX = segMinX + segmentSize.width
-    const segMaxY = segMinY + segmentSize.height
-    minX = Math.min(segMinX, minX)
-    maxX = Math.max(segMaxX, maxX)
-    minY = Math.min(segMinY, minY)
-    maxY = Math.min(segMaxY, maxY)
-  }
-  return { minX, minY, maxX, maxY }
-}
-*/
 
 
 export function createAlternatingTokenSegment(
@@ -222,6 +198,51 @@ export function createAlternatingEmptyTokenSegment(
       ...ALL_TILES[(i + startIndex) % ALL_TILES.length],
       height: calculateHeight(i, tokenSize, heightType),
     }
+  }
+  return tokens
+}
+
+
+export function createBorderedTokenSegment(
+  size: BoardSize,
+  _startIndex: number,
+  heightType: integer,
+): (TestTile | null)[] {
+  const tokens = createNullTokenSegment(size)
+  const tokenSize = getTokenBoardSize(size)
+  let idx = 0
+  for (let row = 0; row < tokenSize.height; row++) {
+    for (let col = 0; col < tokenSize.width; col++) {
+      const token = {
+        ...RED_TILE,
+        height: calculateHeight(idx, tokenSize, heightType),
+      }
+      tokens[idx] = token
+      if (row <= 0) {
+        if (col <= 0) {
+          token.category = GREEN_TILE.category
+        } else if (col >= tokenSize.width - 1) {
+          token.category = BLUE_TILE.category
+        }
+      } else if (row >= tokenSize.height - 1) {
+        if (col <= 0) {
+          token.category = YELLOW_TILE.category
+        } else if (col >= tokenSize.width - 1) {
+          token.category = CYAN_TILE.category
+        }
+      } else {
+        if (col <= 0) {
+          token.category = MAGENTA_TILE.category
+        } else if (col >= tokenSize.width - 1) {
+          token.category = MOUNTAIN_TILE.category
+        } else {
+          token.category = WATER_TILE.category
+        }
+      }
+      idx++
+    }
+  }
+  for (let i = 0; i < tokens.length; i++) {
   }
   return tokens
 }
@@ -376,6 +397,10 @@ function hexTokensToSegment(
   game: GameInfo,
   tokens: (TestTile | null)[],
 ): SegmentTile[] {
+
+  // Note: this has a bug where the top row odd token columns
+  //   are empty.  That's going to stay that way.
+
   const tokenSize = getTokenBoardSize(size)
   const tokenWidth = tokenSize.width
   const tokenHeight = tokenSize.height
