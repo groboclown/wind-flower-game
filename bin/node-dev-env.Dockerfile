@@ -31,7 +31,7 @@ USER local
 
 RUN echo "installing n as a local user" \
     && n 19.1.0 \
-    && n exec 19.1.0 npm install -g npm@9.1.2 \
+    && n exec 19.1.0 npm install -g npm@9.3.1 \
     && n exec 19.1.0 node --version \
     && echo "complete"
 
