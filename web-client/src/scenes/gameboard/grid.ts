@@ -201,6 +201,10 @@ export class Grid3d {
   //    Note how this lookup is backwards from the usual nomenclature of col/row.
   private tilePosGridTileIndex: {[keys: integer]: {[keys: integer]: integer}}
 
+  // The tokenId -> UV texture mode.
+  //    The rendering for the alternate modes is done here.
+  private tokenIdModes: {[keys: integer]: TileMode}
+
 
   constructor(
     boardManager: GameBoardManager,
@@ -243,6 +247,7 @@ export class Grid3d {
     // Property Initialization
     const self = this
 
+    this.tokenIdModes = {}
     this.boardManager = boardManager
     this.boardHandler = {
       onSegmentLoaded: (x: integer, y: integer, segmentId: string) => {
@@ -757,7 +762,18 @@ export class Grid3d {
           gridTile.hexColumn = hexIndex % 3
           gridTile.hexRow = (hexIndex / 3) | 0
 
-          const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, false, false)
+          let hover = false
+          let selected = false
+          if (tile.tokenId !== null) {
+            const tokenMode = this.tokenIdModes[tile.tokenId]
+            if (tokenMode !== undefined) {
+              hover = tokenMode.hoverOver
+              selected =tokenMode.selected
+            }
+          }
+
+          // Need to check if this UV map lookup can be optimized.
+          const uvPos = this.textureHandler.getTileUVMap(tile, hexIndex, hover, selected)
           uv.setXY(vertexIndex    , uvPos[0][0], uvPos[0][1])
           uv.setXY(vertexIndex + 1, uvPos[1][0], uvPos[1][1])
           uv.setXY(vertexIndex + 2, uvPos[2][0], uvPos[2][1])
@@ -895,6 +911,16 @@ export class Grid3d {
   updateTileTexture(intersection: IntersectedTokenTile, mode: TileMode) {
     if (intersection.tokenId === null) {
       return
+    }
+
+    // Update our lookup for redraw purposes.
+    if (mode.hoverOver === false && mode.selected === false) {
+      // Remove this from our list.
+      if (this.tokenIdModes[intersection.tokenId] !== undefined) {
+        delete this.tokenIdModes[intersection.tokenId]
+      }
+    } else {
+      this.tokenIdModes[intersection.tokenId] = { ...mode }
     }
 
     const uv = this.geometry.getAttribute('uv') as THREE.BufferAttribute

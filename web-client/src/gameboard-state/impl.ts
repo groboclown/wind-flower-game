@@ -22,23 +22,6 @@ const EMPTY_TILE: ClientTile = {
   vertexHeightCount: [0, 0, 0],
 }
 
-const LOADING_TILE: ClientTile = {
-  tokenId: null,
-  category: CATEGORY_LOADING,
-  variation: 0,
-  height: 0,
-  parameters: {},
-
-  // This value MUST be replaced when first created.
-  tokenHexTileIndex: 0,
-
-  // These values must be all set to 0.  Calculations
-  // on incremental segment loading expect it.
-  vertexHeight: [0, 0, 0],
-  vertexHeightSum: [0, 0, 0],
-  vertexHeightCount: [0, 0, 0],
-}
-
 
 function getAbsSegmentId(x: integer, y: integer): string {
   return `${x},${y}`
@@ -158,7 +141,10 @@ export class GameBoardManagerImpl implements GameBoardManager {
     let row = y
     for (let i = 0; i < count; i++) {
       tiles[i] = {
-        ...LOADING_TILE,
+        tokenId: null,
+        category: CATEGORY_LOADING,
+        variation: 0,
+        height: 0,
 
         // One time hex tile index discovery.
         tokenHexTileIndex: getHexTileIndex(col, row),
@@ -316,7 +302,7 @@ export class GameBoardManagerImpl implements GameBoardManager {
     //   Loop over the north and south edges tiles.
     const horizY = [segment.y, maxTileY - 1]
     for (tileX = segment.x; tileX < maxTileX; tileX++) {
-      for (let yIdx = 0; y < 2; y++) {
+      for (let yIdx = 0; yIdx < 2; yIdx++) {
         tileY = horizY[yIdx]
         const tileIdx = tileX - segment.x + ((tileY - segment.y) * width)
         const tile = segment.tiles[tileIdx]
@@ -335,8 +321,31 @@ export class GameBoardManagerImpl implements GameBoardManager {
         }
       }
     }
-    for (tileY = segment.y; tileY < maxTileY; tileY++) {
 
+    // Loop over the east and west edge tiles.
+    const horizX = [segment.x, maxTileX - 1]
+    for (tileY = segment.y; tileY < maxTileY; tileY++) {
+      for (let xIdx = 0; xIdx < 2; xIdx++) {
+        tileX = horizX[xIdx]
+        const tileIdx = tileX - segment.x + ((tileY - segment.y) * width)
+        const tile = segment.tiles[tileIdx]
+        if (tile === undefined) {
+          throw new Error(`${tileIdx}: ${tileX},${tileY} / (${segment.x}, ${segment.y})`)
+        }
+        const otherTilesVertexRel = TILE_VERTEX_INDEX_ADJUSTS_ADJACENT[tile.tokenHexTileIndex]
+        for (let tIdx = 0; tIdx < 4; tIdx++) {
+          const tileVertexRel = otherTilesVertexRel[tIdx]
+          const other = self.getTileAt(tileX + tileVertexRel[0], tileY + tileVertexRel[1], tileAddrCache)
+          if (other !== null) {
+            const vIdx = tileVertexRel[2]
+            if (other.vertexHeightCount[vIdx] < 3) {
+              other.vertexHeightSum[vIdx] += tile.height
+              other.vertexHeightCount[vIdx]++
+              other.vertexHeight[vIdx] = other.vertexHeightSum[vIdx] / other.vertexHeightCount[vIdx]
+            }
+          }
+        }
+      }
     }
 
     // The board state just changed again, so update the load id.
